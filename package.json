@@ -1,0 +1,152 @@
+{
+  "name": "chatllm-vscode",
+  "displayName": "chatllm-vscode",
+  "description": "",
+  "version": "0.0.1",
+  "engines": {
+    "vscode": "^1.84.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "*"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "markdown.previewStyles": [
+      "./node_modules/highlight.js/styles/atom-one-dark.css"
+    ],
+    "notebookRenderer": [
+      {
+        "id": "myMarkdownWithLatexRenderer",
+        "displayName": "Markdown with LaTeX Renderer",
+        "entrypoint": "./out/customMarkdownRenderer.js",
+        "mimeTypes": [
+          "text/markdown"
+        ]
+      }
+    ],
+    "configuration": {
+      "title": "ChatLLM Settings",
+      "properties": {
+        "chatllm.openaiApiKey": {
+          "type": "string",
+          "default": "",
+          "description": "API Key for OpenAI."
+        },
+        "chatllm.models": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "default": {
+            "GPT-4-Turbo": "openai/gpt-4-1106-preview",
+            "Llama-70B-Chat (HF)": "huggingface/meta-llama/Llama-2-70b-chat-hf",
+            "Claude 2.1": "anthropic/clong2"
+          },
+          "description": "List of Model : API / Model-Name pairs for each model.  API must be one of 'openai', 'huggingface', or 'anthropic' currently (more APIs can be added)."
+        },
+        "chatllm.defaultModel": {
+          "type": "string",
+          "default": "GPT-4-Turbo",
+          "description": "Name of default model"
+        }
+      }
+    },
+    "languages": [
+      {
+        "id": "chatllm-system-prompt",
+        "aliases": [
+          "ChatLLM System Prompt",
+          "chatllm-system-prompt"
+        ],
+        "extensions": [
+          ".chatllmsys"
+        ],
+        "configuration": "./language-configuration.json"
+      },
+      {
+        "id": "chatllm",
+        "aliases": [
+          "ChatLLM",
+          "chatllm"
+        ],
+        "extensions": [
+          ".chatllm"
+        ],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "notebooks": [
+      {
+        "type": "chatllm-notebook",
+        "displayName": "ChatLLM Notebook",
+        "selector": [
+          {
+            "filenamePattern": "*.chatllm"
+          }
+        ]
+      }
+    ],
+    "commands": [
+      {
+        "command": "chatllm.selectModel",
+        "title": "Select Model",
+        "category": "Notebook Cell"
+      },
+      {
+        "command": "chatllm.detachOutput",
+        "title": "Detach Output",
+        "category": "Notebook Cell"
+      }
+    ],
+    "menus": {
+      "notebook/cell/title": [
+        {
+          "command": "chatllm.selectModel",
+          "group": "navigation@1",
+          "when": "notebookType == chatllm-notebook"
+        },
+        {
+          "command": "chatllm.detachOutput",
+          "group": "navigation@1",
+          "when": "notebookType == chatllm-notebook"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "node esbuild.js",
+    "pretest": "npm run compile && npm run lint",
+    "lint": "eslint src --ext ts",
+    "test": "node ./out/test/runTest.js"
+  },
+  "devDependencies": {
+    "@types/mocha": "^10.0.3",
+    "@types/node": "18.x",
+    "@types/vscode": "^1.84.0",
+    "@typescript-eslint/eslint-plugin": "^6.9.0",
+    "@typescript-eslint/parser": "^6.9.0",
+    "@vscode/test-electron": "^2.3.6",
+    "esbuild": "^0.19.5",
+    "eslint": "^8.52.0",
+    "glob": "^10.3.10",
+    "mocha": "^10.2.0",
+    "typescript": "^5.2.2"
+  },
+  "dependencies": {
+    "@traptitech/markdown-it-katex": "^3.6.0",
+    "@types/vscode-notebook-renderer": "^1.72.3",
+    "commonjs": "^0.0.1",
+    "esbuild-sass-plugin": "^2.16.0",
+    "katex": "^0.16.9",
+    "markdown-it": "^13.0.2",
+    "markdown-it-highlightjs": "^4.0.1",
+    "markdown-it-mathjax3": "^4.3.2",
+    "markdown-it-texmath": "^1.0.0",
+    "openai": "^4.18.0",
+    "prettier": "^3.1.0"
+  }
+}
