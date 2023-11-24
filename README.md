@@ -1,6 +1,8 @@
 # chatllm-vscode README
 
-This is the README for your extension "chatllm-vscode". After writing up a brief description, we recommend including the following sections.
+ChatLLM is a VSCode extension for interacting with LLM APIs in a flexible and long-form manner.  Although there are no shortage of "talk with ChatGPT"-type VSCode extensions, my feeling is that all of these encourage the wrong form of interaction.  In my experience, the best use of chatbots are not as single "one-off" interactions, but as long-form projects that build a system over a long period of time and long context (of course limited to the context of the underlying model, but these are expanding rapidly).
+
+ChatLLM is an extremely simple extension that provides an easy way to accomplish this.  It is basically a thin wrapper over the already-present notebook interface contained in VSCode, to let you talk with an LLM as a (saveable, long-history) notebook.
 
 ## Features
 

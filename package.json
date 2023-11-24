@@ -6,11 +6,15 @@
   "engines": {
     "vscode": "^1.84.0"
   },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/locuslab/chatllm-vscode.git"
+  },  
   "categories": [
     "Other"
   ],
   "activationEvents": [
-    "*"
+    "onNotebook:chatllm-notebook"
   ],
   "main": "./out/extension.js",
   "contributes": {

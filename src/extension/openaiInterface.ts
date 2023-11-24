@@ -16,7 +16,7 @@ export function callChatGPT(messages : {role: string; content: string;}[]):
         try {
             // Call the OpenAI API
             completion = await openai.chat.completions.create({
-                model: config.get<string>('modelName') || 'gpt-3.5-turbo',
+                model: config.get<string>('modelName') || 'gpt-4-1106-preview',
                 messages: messages as OpenAI.Chat.Completions.ChatCompletionMessageParam[],
                 stream: true,
             });
