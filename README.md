@@ -47,8 +47,7 @@ The currently-selected model will display in the status bar at the bottom of the
 
 Once this is set up, to send the chat command just run the cell.  It will display the output in markdown format in the cell.
 
-The mechanism of ChatLLM is that all content _before_ the cell you are running will be sent to the API as a chat interaction (truncated at the appropriate length of tokens you specify).  As mentioned, Markdown cells are treated as user inputs, with one exception.  If you want to edit the previous _output_ of an LLM for future interactions (which is possible, of course), you can select the 
-
+The mechanism of ChatLLM is that all content _before_ the cell you are running will be sent to the API as a chat interaction (truncated at the appropriate length of tokens you specify).  As mentioned, Markdown cells are treated as user inputs, with one exception.  If you want to edit the previous _output_ of an LLM for future interactions (which is possible, of course), you can select the cell and choose the "ChatLLM: Detach Output" command from the same ellipses menu as you used to select the model.  This will detach the cell output into a separate Markdown cell with the starting identifier `#### (Chat Output)`, which will make that cell be treated as LLM output in the chat interactions.
 
 ## Technology
 
