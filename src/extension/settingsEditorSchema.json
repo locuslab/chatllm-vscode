@@ -1,0 +1,206 @@
+{
+    "chatllm": [
+        {
+            "key": "name",
+            "type": "string",
+            "description": "ChatLLM model name",
+            "optional": false,
+            "defaultValue": "My Model"
+        },
+        {
+            "key": "api",
+            "type": "enum",
+            "values": ["openai", "together"],
+            "description": "Model API",
+            "optional": false,
+            "defaultValue": "openai"
+        },
+        {
+            "key": "truncateTokens",
+            "type": "number",
+            "description": "Truncate tokens",
+            "optional": true,
+            "defaultValue": null
+        }
+    ],
+    "openai": [
+        {
+            "key": "model",
+            "type": "string",
+            "description": "OpenAI Model",
+            "optional": false,
+            "defaultValue": "gpt-4-1106-preview"
+        },
+        {
+            "key": "api_key",
+            "type": "string",
+            "description": "OpenAI API key",
+            "optional": false,
+            "defaultValue": ""
+        },
+        {
+            "key": "url",
+            "type": "string",
+            "description": "Base URL, if custom",
+            "optional": true,
+            "defaultValue": null
+        },
+        {
+            "key": "frequency_penalty",
+            "type": "number",
+            "description": "Frequency penalty",
+            "optional": true,
+            "defaultValue": null
+        },
+        {
+            "key": "logit_bias",
+            "type": "object",
+            "description": "Adjustments to logits",
+            "optional": true,
+            "defaultValue": null
+        },
+        {
+            "key": "max_tokens",
+            "type": "number",
+            "description": "Max generated tokens",
+            "optional": true,
+            "defaultValue": null
+        },
+        {
+            "key": "presence_penalty",
+            "type": "number",
+            "description": "Presence penalty",
+            "optional": true,
+            "defaultValue": null
+        },
+        {
+            "key": "response_format",
+            "type": "object",
+            "description": "Response format",
+            "optional": true,
+            "defaultValue": null
+        },
+        {
+            "key": "seed",
+            "type": "number",
+            "description": "Random seed",
+            "optional": true,
+            "defaultValue": null
+        },
+        {
+            "key": "stop",
+            "type": "object",
+            "description": "Stop token(s)",
+            "optional": true,
+            "defaultValue": null
+        },
+        {
+            "key": "temperature",
+            "type": "number",
+            "description": "Temperature parameter",
+            "optional": true,
+            "defaultValue": null
+        },
+        {
+            "key": "top_p",
+            "type": "number",
+            "description": "Top p parameter",
+            "optional": true,
+            "defaultValue": null
+        },
+        {
+            "key": "tools",
+            "type": "object",
+            "description": "Tools list",
+            "optional": true,
+            "defaultValue": null
+        },
+        {
+            "key": "tool_choice",
+            "type": "object",
+            "description": "Preferred tool",
+            "optional": true,
+            "defaultValue": null
+        },
+        {
+            "key": "user",
+            "type": "string",
+            "description": "User identifier",
+            "optional": true,
+            "defaultValue": null
+        }
+    ],
+    "together": [
+        {
+            "key": "model",
+            "type": "string",
+            "description": "Together model name",
+            "optional": false,
+            "defaultValue": "default-model"
+        },
+        {
+            "key": "api_key",
+            "type": "string",
+            "description": "Together API key",
+            "optional": false,
+            "defaultValue": ""
+        },
+        {
+            "key": "url",
+            "type": "string",
+            "description": "Base URL",
+            "optional": true,
+            "defaultValue": null
+        },
+        {
+            "key": "max_tokens",
+            "type": "number",
+            "description": "Max tokens to generate",
+            "optional": false,
+            "defaultValue": 1024
+        },
+        {
+            "key": "stop",
+            "type": "object",
+            "description": "Stop token(s)",
+            "optional": false,
+            "defaultValue": ["</s>"]
+        },
+        {
+            "key": "temperature",
+            "type": "number",
+            "description": "Temperature parameter",
+            "optional": true,
+            "defaultValue": null
+        },
+        {
+            "key": "top_p",
+            "type": "number",
+            "description": "Top p parameter",
+            "optional": true,
+            "defaultValue": null
+        },
+        {
+            "key": "top_k",
+            "type": "number",
+            "description": "Generate k completions",
+            "optional": true,
+            "defaultValue": null
+        },
+        {
+            "key": "repetition_penalty",
+            "type": "number",
+            "description": "Repetition penalty",
+            "optional": true,
+            "defaultValue": null
+        },
+        {
+            "key": "logprobs",
+            "type": "number",
+            "description": "Num log probabilities",
+            "optional": true,
+            "defaultValue": null
+        }
+    ]
+}
+

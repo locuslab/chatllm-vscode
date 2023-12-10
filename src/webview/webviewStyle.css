@@ -1,0 +1,41 @@
+.container {
+    display: flex;
+    height: 100%;
+  }
+
+  .model-list-pane {
+    display: flex;
+    flex-direction: column;
+    margin: 5px;
+    padding-right:20px;
+    width:200px;
+    
+  }
+  
+  .model-detail-pane {
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1;
+    margin: 5px; 
+    overflow-y: auto; 
+    width: calc(100% - 200px);
+  }
+
+  .selected-row {
+    background: var(--vscode-list-hoverBackground);
+    outline: none;
+  }
+
+  vscode-data-grid {
+    padding-bottom:5px;
+  }
+
+  .property-field-container {
+    justify-content: space-between;
+    margin-bottom: 10px;
+  }
+  
+  .label-space {
+    padding-bottom:3px;
+  }
+  

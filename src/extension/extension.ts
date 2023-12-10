@@ -1,13 +1,39 @@
 import * as vscode from 'vscode';
-import { callChatGPT } from './openaiInterface.js';
-import prettier from 'prettier';
+import { getEncoding, encodingForModel } from "js-tiktoken";
+import { callChatGPT, callTogether, OpenAIModelSettings, TogetherModelSettings } from './llmInterface.ts';
+import { ChatLLMNotebookSerializer } from './serializer.ts';
+import { SettingsEditorPanel } from './settingsEditor';
 
 type ChatMessage = {
     role: string;
     content: string;
+    tokens? : number;
 };
 type ChatMessagesArray = ChatMessage[];
-const config = vscode.workspace.getConfiguration('chatllm');
+
+enum API {
+    openai = "openai",
+    together = "together",
+    none = "none"
+}
+
+type ModelSpec = {
+    name: string;
+    api: API;
+    truncateTokens?: number;
+    [key : string]: any;
+};
+
+function errorModelSpec(): ModelSpec {
+    return {
+        name: '',
+        api: API.none,
+    };
+}
+
+
+
+
 let modelStatusBarItem;
 
 
@@ -19,6 +45,10 @@ export function activate(context: vscode.ExtensionContext) {
         'chatllm-notebook', new ChatLLMNotebookSerializer()
       ));
 
+      context.subscriptions.push(vscode.commands.registerCommand('chatllm.editSettings', () => {
+        SettingsEditorPanel.createOrShow(context.extensionUri);
+      }));
+
     modelStatusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
     modelStatusBarItem.show();
     context.subscriptions.push(modelStatusBarItem);
@@ -29,8 +59,12 @@ export function activate(context: vscode.ExtensionContext) {
     vscode.workspace.onDidChangeNotebookDocument(notebookChangedEvent);
 }
 
+
+
 // This method is called when your extension is deactivated
 export function deactivate() {}
+
+
 
 
 
@@ -77,138 +111,137 @@ class ChatLLMController {
         execution.start(Date.now());
 
         if (cell.document.languageId === 'chatllm') {
-            // convert to list of messages
-            const previousCells = cell.notebook.getCells().filter(c => c.index < cell.index);
-            // Build the messages array from cells
-            const messages = previousCells.flatMap(cell => {
-                if (cell.document.languageId === 'chatllm-system-prompt') {
-                    return { role: 'system', content: cell.document.getText() as string || '' };
-                } else if (cell.document.languageId.startsWith('chatllm')) {
-                    if (cell.outputs.length === 0) {
-                        return { role: 'user', content: cell.document.getText() as string || '' };
-                    } else {
-                        return [
-                            { role: 'user', content: cell.document.getText() as string || '' },
-                            { role: 'assistant', content: new TextDecoder().decode(cell.outputs[0].items[0].data) }
-                        ];
-                    }
-                } else if (cell.document.languageId === 'markdown') {
-                    const cellText = cell.document.getText();
-                    const role = cellText.startsWith("#### (Chat Output)\n") ? "assistant" : "user";
-                    return {role: role, content: cellText};
+
+            const config = vscode.workspace.getConfiguration('chatllm');
+            const models : ModelSpec[] = config.get("models",[]);
+            const model : ModelSpec = models.find(item => item.name === cell.metadata.model) || errorModelSpec();
+
+            if (model) {
+                // convert to list of messages
+                const cells = [...cell.notebook.getCells().filter(c => c.index < cell.index), cell];
+                const messages = await updateMessagesAndMetadata(cells);
+                console.log(messages);
+                const collapsedMessages = collapseConsecutiveMessages(messages, model.truncateTokens);
+                console.log(collapsedMessages);
+
+
+                let stream : AsyncGenerator<string, void, unknown>;
+                let abort : () => void;
+
+                if (model.api === API.openai) {
+                    ({stream, abort} = callChatGPT(collapsedMessages, model as OpenAIModelSettings));
+                } else if (model.api === API.together) {
+                    ({stream, abort} = callTogether(collapsedMessages, model as TogetherModelSettings));
+                } else {
+                    vscode.window.showErrorMessage("No valid model specified");
+                    execution.end(true, Date.now());
+                    return;
                 }
-                return []; // Return an empty array for non-matching cases to ensure type consistency
-            });
-            messages.push({role:"user", "content": cell.document.getText()});
 
+                let accumulatedResponse = '';
+                execution.token.onCancellationRequested(() => abort());
 
-            const { stream, abort } = callChatGPT(collapseConsecutiveMessages(messages));
-
-            let accumulatedResponse = '';
-            execution.token.onCancellationRequested(() => abort());
-
-            for await (const response of stream) {
-                accumulatedResponse += response;
-                // Update the cell's output with the accumulated content
-                execution.replaceOutput([
-                    new vscode.NotebookCellOutput([
-                        vscode.NotebookCellOutputItem.text(accumulatedResponse, 'text/markdown')
-                    ])
-                ]);
+                for await (const response of stream) {
+                    accumulatedResponse += response;
+                    // Update the cell's output with the accumulated content
+                    execution.replaceOutput([
+                        new vscode.NotebookCellOutput([
+                            vscode.NotebookCellOutputItem.text(accumulatedResponse, 'text/markdown')
+                        ])
+                    ]);
+                }
             }
         }
 
         execution.end(true, Date.now());
     }
-
-
 }
 
 
-function collapseConsecutiveMessages(messages: ChatMessagesArray): ChatMessagesArray {
+const tokenEncoder = getEncoding("gpt2");
+async function updateMessagesAndMetadata(cells : vscode.NotebookCell[]) {
+    const messages: ChatMessage[] = [];
+
+    for (const cell of cells) {
+        let rolesAndContents : ChatMessage[] = [];
+
+        if (cell.document.languageId === 'chatllm-system-prompt') {
+            rolesAndContents.push({ role: 'system', content: cell.document.getText() || '' });
+        } else if (cell.document.languageId.startsWith('chatllm')) {
+            rolesAndContents.push({ role: 'user', content: cell.document.getText() || '' });
+
+            // Handle output only for previous cells, not for the current cell
+            if (cell.outputs.length > 0 && cell !== cells[cells.length - 1]) {
+                const assistantMessageContent = new TextDecoder().decode(cell.outputs[0].items[0].data);
+                rolesAndContents.push({ role: 'assistant', content: assistantMessageContent });
+            }
+        } else if (cell.document.languageId === 'markdown') {
+            const cellText = cell.document.getText();
+            const role = cellText.startsWith("#### (Chat Output)\n") ? "assistant" : "user";
+            rolesAndContents.push({ role, content: cellText });
+        }
+
+        for (const { role, content } of rolesAndContents) {
+            // Use existing token count or generate a new one and update metadata
+            let numTokens = cell.metadata?.tokens?.[role];
+            if (numTokens === undefined && content) {
+                numTokens = tokenEncoder.encode(content).length;
+                const tokensObj = cell.metadata?.tokens || {};
+                tokensObj[role] = numTokens;
+
+                const newMetadata = {...cell.metadata, tokens:tokensObj};
+
+                const nbEdit = vscode.NotebookEdit.updateCellMetadata(cell.index, newMetadata);
+                const workspaceEdit = new vscode.WorkspaceEdit();
+                workspaceEdit.set(cell.notebook.uri, [nbEdit]);
+                await vscode.workspace.applyEdit(workspaceEdit);
+            }
+
+            // Add the message to the array with the tokens
+            messages.push({ role, content, tokens:numTokens });
+        }
+    }
+    return messages;
+}
+
+
+function collapseConsecutiveMessages(messages: ChatMessagesArray, truncation: number | undefined): ChatMessagesArray {
     // Collapse together consecutive roles of the same type
-    const collapsedMessages: ChatMessagesArray = [{role:"system", content:""}];
+
+    const collapsedMessages: ChatMessagesArray = [{role:"system", content:"", tokens:0}];
     for (const message of messages) {
         if (message.role === "system") {
             collapsedMessages[0].content += "\n" + message.content;
+            collapsedMessages[0].tokens = (collapsedMessages[0].tokens || 0) + (message.tokens || 0);
         } else if (message.role === collapsedMessages[collapsedMessages.length-1].role) {
             collapsedMessages[collapsedMessages.length-1].content += "\n" + message.content;
+            collapsedMessages[collapsedMessages.length-1].content += 1 + (message.tokens || 0);
         } else {
             collapsedMessages.push({...message});
         }
     }
-    return collapsedMessages;
-}
 
-
-
-class ChatLLMNotebookSerializer implements vscode.NotebookSerializer {
-  
-    async deserializeNotebook(content: Uint8Array, _token: vscode.CancellationToken): Promise<vscode.NotebookData> {
-        if (content.length === 0) {
-            // When the file is new or empty, return a new NotebookData with no cells
-            return new vscode.NotebookData([]);
-        }
-        
-        const text = new TextDecoder().decode(content);
-        let data: any;
-        try {
-            data = JSON.parse(text);
-        } catch (error) {
-            console.error('Error parsing JSON notebook content:', error);
-            // Handle invalid JSON by returning an empty NotebookData or notifying the user
-            return new vscode.NotebookData([]);
-        }
-    
-        // Convert parsed data into NotebookData, including cell outputs
-        const cells = data.cells.map((cell: any) => {
-            const cellData = new vscode.NotebookCellData(
-                cell.kind,
-                cell.value,
-                cell.languageId
-                );
-            if (cell.model) {
-                cellData.metadata = {"model":cell.model};
+    // Truncate input
+    if (truncation) {
+        let truncatedSubset : ChatMessagesArray = [];
+        let currentSum = 0;
+        const max_tokens = truncation - (collapsedMessages[0].tokens || 0);
+        for (let i = collapsedMessages.length - 1; i >= 0; i--) {
+            if (currentSum + (collapsedMessages[i].tokens || 0) < max_tokens) {
+                truncatedSubset.unshift(collapsedMessages[i]);
+                currentSum += collapsedMessages[i].tokens || 0;
+            } else {
+                break;
             }
-            
-                
-            if (cell.outputs) {
-                cellData.outputs = cell.outputs.map((output: any) => {
-                    const outputItems = output.items.map((item: any) => {
-                        // Assume text-based outputs are stored as strings; binary outputs need special handling
-                        let data = new TextEncoder().encode(item.data);
-                        return new vscode.NotebookCellOutputItem(data, item.mime);
-                    });
-                    return new vscode.NotebookCellOutput(outputItems);
-                });
-            }
-            
-            return cellData;
-        });
-        return new vscode.NotebookData(cells);
-    }
-
-    async serializeNotebook(data: vscode.NotebookData, _token: vscode.CancellationToken): Promise<Uint8Array> {
-        const content = {
-            cells: data.cells.map(cell => ({
-                kind: cell.kind,
-                value: cell.value,
-                languageId: cell.languageId,
-                outputs: cell.outputs?.map(output => ({
-                    items: output.items.map(item => {
-                        // Determine how to serialize based on MIME type
-                        let serializedData = new TextDecoder().decode(item.data);
-                        return { data: serializedData, mime: item.mime };
-                    })
-                })),
-                ...(cell.metadata?.model !== undefined && {model:cell.metadata.model})
-
-            }))
-        };
-        
-        return new TextEncoder().encode(JSON.stringify(content, null, 2));
+        }
+        truncatedSubset.unshift(collapsedMessages[0]);
+        return truncatedSubset.map(({tokens, ...rest}) => rest);
+    } else {
+        return collapsedMessages.map(({tokens, ...rest}) => rest);
     }
 }
+
+
 
 
 async function detachOutput() {
@@ -268,6 +301,10 @@ async function detachOutput() {
 }
 
 
+interface MyQuickPickItem extends vscode.QuickPickItem {
+    obj: ModelSpec;
+}
+
 async function selectModel() {
     const activeEditor = vscode.window.activeNotebookEditor;
     if (!activeEditor) {
@@ -283,12 +320,13 @@ async function selectModel() {
     }
 
     if (currentCell.kind !== vscode.NotebookCellKind.Code) {
-        vscode.window.showInformationMessage('Can only split code cell');
+        vscode.window.showInformationMessage('Can select model for code cell');
         return;
     }
 
-    console.log(Object.keys(config.get<object>("models",{})).sort());
-    const selectedModel = await vscode.window.showQuickPick(Object.keys(config.get<object>("models",{})).sort(), {
+    const config = vscode.workspace.getConfiguration('chatllm');
+    const models : string[] = config.get<ModelSpec[]>("models",[]).map(item => (item.name));
+    const selectedModel = await vscode.window.showQuickPick(models, {
         placeHolder: 'Select cell model',
     });
     if (selectedModel) {
@@ -298,16 +336,23 @@ async function selectModel() {
 }
 
 
-async function setCellModel(cell: vscode.NotebookCell, model : string | null) {
+async function setCellModel(cell: vscode.NotebookCell, model : string | undefined) {
     const workspaceEdit = new vscode.WorkspaceEdit();
-    const nbEdit = vscode.NotebookEdit.updateCellMetadata(cell.index, model ? {model: model} : {});
+    let newMetadata;
+    if (model) {
+        newMetadata = {...cell.metadata, model:model};
+    } else {
+        const {model: _, ...rest} = cell.metadata;
+        newMetadata = rest;
+    }
+    const nbEdit = vscode.NotebookEdit.updateCellMetadata(cell.index, newMetadata);
     workspaceEdit.set(cell.notebook.uri, [nbEdit]);
     await vscode.workspace.applyEdit(workspaceEdit);
 }
 
 
-
 const cellLanguageMap = new Map<string, string>();
+const cellLengthMap = new Map<string,number>();
 function notebookChangedEvent(event : vscode.NotebookDocumentChangeEvent) {
 
     // handle adding a new cell => adopt the model of the immediate cell above
@@ -319,7 +364,8 @@ function notebookChangedEvent(event : vscode.NotebookDocumentChangeEvent) {
                     if (previousCell?.metadata?.model) {
                         setCellModel(cell, previousCell.metadata.model);
                     } else {
-                        setCellModel(cell, config.get<string>("defaultModel", "GPT-4-Turbo"));
+                        const config = vscode.workspace.getConfiguration('chatllm');
+                        setCellModel(cell, config.get("models",[errorModelSpec()])[0].name);
                     }
                 }
             });
@@ -327,7 +373,7 @@ function notebookChangedEvent(event : vscode.NotebookDocumentChangeEvent) {
     });
 
     // handle changing the language of existing cell => remove model, or set to the cell above or default
-    event.cellChanges.forEach(change => {
+    event.cellChanges.forEach(async change => {
         if (change.cell.document.languageId !== cellLanguageMap.get(change.cell.document.uri.toString())) {
             cellLanguageMap.set(change.cell.document.uri.toString(), change.cell.document.languageId);
             if (change.cell.document.languageId === "chatllm") {
@@ -336,14 +382,25 @@ function notebookChangedEvent(event : vscode.NotebookDocumentChangeEvent) {
                     if (previousCell?.metadata?.model) {
                         setCellModel(change.cell, previousCell.metadata.model);
                     } else {
-                        setCellModel(change.cell, config.get<string>("defaultModel", "GPT-4-Turbo"));
+                        const config = vscode.workspace.getConfiguration('chatllm');
+                        setCellModel(change.cell, config.get("models",[errorModelSpec()])[0].name);
                     }
                 }
             } else {
                 if (change.cell.metadata?.model) {
-                    setCellModel(change.cell, null);
+                    setCellModel(change.cell, undefined);
                 }
             }
+        }
+
+        if (change.cell.document.getText().length !== cellLengthMap.get(change.cell.document.uri.toString())) {
+            cellLengthMap.set(change.cell.document.uri.toString(), change.cell.document.getText().length);
+
+            const {tokens: _, ...newMetadata} = change.cell.metadata;
+            const nbEdit = vscode.NotebookEdit.updateCellMetadata(change.cell.index, newMetadata);
+            const workspaceEdit = new vscode.WorkspaceEdit();
+            workspaceEdit.set(change.cell.notebook.uri, [nbEdit]);
+            await vscode.workspace.applyEdit(workspaceEdit);
         }
     });
     updateStatusBarItem();

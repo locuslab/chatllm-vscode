@@ -1,10 +1,16 @@
 # chatllm-vscode README
 
-ChatLLM is a VSCode extension for interacting with LLM APIs in a flexible and long-form manner.  Although there are no shortage of "talk with ChatGPT"-type VSCode extensions, my feeling is that all of these encourage the wrong form of interaction.  In my experience, the best use of chatbots are not as single "one-off" interactions, but as long-form projects that build a system over a long period of time and long context (of course limited to the context of the underlying model, but these are expanding rapidly).
+ChatLLM is a VSCode extension for interacting with LLM APIs in a flexible and long-form manner.  It leverages the VSCode notebook support to do so, creating a new type of notebook (.chatllm) files where you can interact with an (API-based) LLM system over a long document.
 
-ChatLLM is an extremely simple extension that provides an easy way to accomplish this.  It is basically a thin wrapper over the already-present notebook interface contained in VSCode, to let you talk with an LLM as a (saveable, long-history) notebook.
+## Motivation
 
-## Features
+For the most part, I think that people are using LLMs suboptimally, especially as far as integration into IDEs goes.  There are no shortage of "talk to ChatGPT"-type plugins for VSCode, and GitHub Co-pilot has chat functionality too, but these methods all seem to prioritize short-term one-off questions and code generation rather than long form interaction.
+
+In my experience, the best way to leverage LLMs (for most tasks, but very much thinking of coding as the primary example) is via long-form interaction, thinking of chat logs as "projects" that evolve over long periods of time.  But at the same time, most public interfaces for LLMs are set up quite badly for this: many can't handle long projects at all (they fail to handle truncation, etc), and even the ChatGPT interface, which I usually would up using before, gets extremely laggy as you build a long chat.
+
+Fortunately, the IDE we're virtually all using already has a perfectly good interface to accomplish this goal, the notebook interface.  I'm writing this as a VSCode plugin instead of e.g. a Jupyter notebook cell magic, (which does also exist incidentally), largely because I want to do development inside an actual IDE.  And while it might make sense to embed these into Jupyter notebooks with an actual Python kernel, in practice I _don't_ want most development work to happen in a notebook, and would rather have a more specific interface that _only_ handles LLMs.
+
+## Installation and setup
 
 Describe specific features of your extension including screenshots of your extension in action. Image paths are relative to this README file.
 
@@ -40,34 +46,3 @@ Users appreciate release notes as you update your extension.
 ### 1.0.0
 
 Initial release of ...
-
-### 1.0.1
-
-Fixed issue #.
-
-### 1.1.0
-
-Added features X, Y, and Z.
-
----
-
-## Following extension guidelines
-
-Ensure that you've read through the extensions guidelines and follow the best practices for creating your extension.
-
-* [Extension Guidelines](https://code.visualstudio.com/api/references/extension-guidelines)
-
-## Working with Markdown
-
-You can author your README using Visual Studio Code. Here are some useful editor keyboard shortcuts:
-
-* Split the editor (`Cmd+\` on macOS or `Ctrl+\` on Windows and Linux).
-* Toggle preview (`Shift+Cmd+V` on macOS or `Shift+Ctrl+V` on Windows and Linux).
-* Press `Ctrl+Space` (Windows, Linux, macOS) to see a list of Markdown snippets.
-
-## For more information
-
-* [Visual Studio Code's Markdown Support](http://code.visualstudio.com/docs/languages/markdown)
-* [Markdown Syntax Reference](https://help.github.com/articles/markdown-basics/)
-
-**Enjoy!**
