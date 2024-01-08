@@ -47,7 +47,7 @@
               "name": "GPT-4-Turbo",
               "api": "openai",
               "model": "gpt-4-1106-preview",
-              "apiKey": ""
+              "api_key": ""
             }
           ]
         }

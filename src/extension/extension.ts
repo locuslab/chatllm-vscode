@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import { getEncoding, encodingForModel } from "js-tiktoken";
 import { callChatGPT, callTogether, callGoogle, 
-    OpenAIModelSettings, TogetherModelSettings, GoogleModelSettings, API } from './llmInterface.ts';
+    OpenAIModelSettings, TogetherModelSettings, GoogleModelSettings, ModelSettings, API } from './llmInterface.ts';
 import { ChatLLMNotebookSerializer } from './serializer.ts';
 import { SettingsEditorPanel } from './settingsEditor';
 import path from 'path';
@@ -9,15 +9,11 @@ import path from 'path';
 type ChatMessage = {
     role: string;
     content: string;
-    tokens? : number;
 };
+
 type ChatMessagesArray = ChatMessage[];
 
-type ModelSpec = {
-    name: string;
-    api: API;
-    truncateTokens?: number;
-    truncateSysPrompt? : boolean;
+type ModelSpec = ModelSettings & {
     [key : string]: any;
 };
 
@@ -27,7 +23,6 @@ function errorModelSpec(): ModelSpec {
         api: API.none,
     };
 }
-
 
 
 
