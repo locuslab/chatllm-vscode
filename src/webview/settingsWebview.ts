@@ -10,6 +10,7 @@ import {
     DataGridCell,
     vsCodeDropdown,
     vsCodeOption,
+    vsCodeCheckbox,
     Option,
 } from '@vscode/webview-ui-toolkit';
 
@@ -20,7 +21,8 @@ provideVSCodeDesignSystem().register(vsCodeDataGrid(),
                                      vsCodeDataGridCell(),
                                      vsCodeTextField(),
                                      vsCodeDropdown(),
-                                     vsCodeOption()
+                                     vsCodeOption(),
+                                     vsCodeCheckbox()
 );
 const vscode = acquireVsCodeApi();
 let schema;
@@ -29,7 +31,6 @@ let models;
 window.addEventListener("load", main);
 window.addEventListener("message", event => {
     const message = event.data; // The JSON data our extension sent
-    console.log(message);
     
     switch(message.command) {
         case 'sendSchema':
@@ -96,7 +97,6 @@ function reallyRemoveModel() {
     if (selectedRow && selectedRow.rowData) {
         const modelIndex = selectedRow.rowData["index"];
         models.splice(modelIndex, modelIndex);
-        console.log(models);
         vscode.postMessage({command:"removeModel", index:modelIndex});
         updateModelList(models);
     }
@@ -172,6 +172,13 @@ function populateModelDetails(selectedModel, modelIndex) {
                 editorElement.appendChild(option);
             });
             editorElement.value = selectedModel[property.key] || property.defaultValue;
+        } else if (property.type == "boolean") {
+            editorElement = document.createElement('vscode-checkbox');
+            if (typeof selectedModel[property.key] === "boolean") {
+                editorElement.checked = selectedModel[property.key]
+            } else {
+                editorElement.checked = property.defaultValue;
+            }
         } else {
             editorElement = document.createElement('vscode-text-field');
             if (property.type === "number") {
@@ -188,7 +195,12 @@ function populateModelDetails(selectedModel, modelIndex) {
         }
         
         editorElement.addEventListener('change', (event) => {
-            const newValue = event.target.value;
+            let newValue : any;
+            if (property.type === 'boolean') {
+                newValue = event.target.checked;
+            } else {
+                newValue = event.target.value;
+            }
 
 
             if (property.optional && newValue === '') {

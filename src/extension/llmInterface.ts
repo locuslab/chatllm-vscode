@@ -1,11 +1,15 @@
 import * as vscode from 'vscode';
 import OpenAI from 'openai';
 import { fetchEventSource } from '@microsoft/fetch-event-source';
+import {GoogleGenerativeAI, GenerateContentStreamResult, HarmBlockThreshold, HarmCategory } from '@google/generative-ai';
+import { safeJSON } from 'openai/core';
 
 
-enum API {
+
+export enum API {
     openai = "openai",
     together = "together",
+    google = "google",
     none = "none"
 }
 
@@ -13,7 +17,8 @@ enum API {
 export interface ModelSettings {
     name: string,
     api: API,
-    truncateTokens?: number 
+    truncateTokens?: number,
+    truncateSysPrompt?: boolean
 }
 
 
@@ -50,6 +55,27 @@ export interface TogetherModelSettings extends ModelSettings {
     logprobs?: number,
 }
 
+
+enum BlockThreshold {
+    none = "none",
+    high = "high",
+    medium = "medium",
+    low = "low"
+}
+
+
+export interface GoogleModelSettings extends ModelSettings {
+    model: string,
+    api_key: string,
+    block_threshold?: BlockThreshold
+    stopSequences?: string | Array<string>,
+    maxOutputTokens?: number,
+    temperature?: number,
+    topP?: number,
+    topK?: number,
+}
+
+
 function removeKeys(obj, ...keysToRemove) {
     return Object.keys(obj).reduce((acc, key) => {
         if (!keysToRemove.includes(key)) {
@@ -59,8 +85,6 @@ function removeKeys(obj, ...keysToRemove) {
     }, {});
 }
 
-
-const config = vscode.workspace.getConfiguration('chatllm');
 
 export function callChatGPT(messages : {role: string; content: string;}[], model: OpenAIModelSettings):
 { stream: AsyncGenerator<string, void, unknown>; abort: () => void; } 
@@ -76,7 +100,7 @@ export function callChatGPT(messages : {role: string; content: string;}[], model
         try {
             // Call the OpenAI API
 
-            const remainingParams = removeKeys(model, 'name', 'api', 'truncateTokens', 'model', 'api_key', 'url');
+            const remainingParams = removeKeys(model, 'name', 'api', 'truncateTokens', 'truncateSysPrompt', 'model', 'api_key', 'url');
             completion = await openai.chat.completions.create({
                 model: model.model,
                 messages: messages as OpenAI.Chat.Completions.ChatCompletionMessageParam[],
@@ -91,7 +115,7 @@ export function callChatGPT(messages : {role: string; content: string;}[], model
                 }
             }
         } catch (error) {
-            console.error('Error during streaming:', error);
+            vscode.window.showErrorMessage(`OpenAI - error during streaming: ${error}`);
         }
     })();
     
@@ -140,7 +164,7 @@ export function callTogether(
         globalThis.document = { removeEventListener: () => {} } as any;
     }
 
-    const remainingParams = removeKeys(model, "name", "api", "truncateTokens", "api_key", "url");
+    const remainingParams = removeKeys(model, "name", "api", "truncateTokens", "truncateSysPrompt", "api_key", "url");
     const abortController = new AbortController();
     fetchEventSource(url, {
         method: 'POST',
@@ -168,10 +192,10 @@ export function callTogether(
             }
         },
         onclose: () => {
-            console.log('Connection closed by the server');
+            //console.log('Connection closed by the server');
         },
         onerror: (err) => {
-            console.error('EventSource failed:', err);
+            vscode.window.showErrorMessage(`Together - EventSource failed: ${err}`);
             abortController.abort();
         },
         openWhenHidden: true
@@ -210,3 +234,91 @@ export function callTogether(
     };
 }
 
+
+const thresholdMap = {
+    none: HarmBlockThreshold.BLOCK_NONE,
+    high: HarmBlockThreshold.BLOCK_ONLY_HIGH,
+    medium: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
+    low: HarmBlockThreshold.BLOCK_LOW_AND_ABOVE
+};
+
+const roleMap = {
+    "user": "user",
+    "assistant": "model"
+};
+
+export function callGoogle(messages : {role: string; content: string;}[], model: GoogleModelSettings):
+{ stream: AsyncGenerator<string, void, unknown>; abort: () => void; } 
+{
+    const genAI = new GoogleGenerativeAI(model.api_key);
+
+    const safetySettings = [
+        {
+            category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
+            threshold: thresholdMap[model.block_threshold || BlockThreshold.medium]
+
+        },
+        {
+            category: HarmCategory.HARM_CATEGORY_HARASSMENT,
+            threshold: thresholdMap[model.block_threshold || BlockThreshold.medium]
+
+        },
+        {
+            category: HarmCategory.HARM_CATEGORY_HATE_SPEECH,
+            threshold: thresholdMap[model.block_threshold || BlockThreshold.medium]
+
+        },
+        {
+            category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT,
+            threshold: thresholdMap[model.block_threshold || BlockThreshold.medium]
+        }
+    ];
+    const generationConfig = removeKeys(model, 'name', 'api', 'truncateTokens', "truncateSysPrompt", 'model', 'api_key', 'block_threshold');
+
+    const genModel = genAI.getGenerativeModel({model: model.model, 
+                                               safetySettings:safetySettings, 
+                                               generationConfig:generationConfig});
+
+    // Gemini doesn't have system prompts, put in in the first user prompt
+    if (messages[0].role === 'system' && messages.length > 1) {
+        messages = [{role:"user", content:messages[0].content + "\n\n" + messages[1].content}, ...messages.slice(2)];
+    }
+    const pastMessages = messages.map(msg => ({ role: roleMap[msg.role], parts: msg.content }));
+    const lastMessage = pastMessages[pastMessages.length-1].parts;
+    pastMessages.pop();
+
+
+    
+    // Add the current cell content
+    let interrupt : Boolean = false;
+    const stream = (async function*() {
+        try {
+            // Call the Google API, either chat or single generation (such a weird API)
+            const remainingParams = removeKeys(model, 'name', 'api', 'truncateTokens', "truncateSysPrompt", 'model', 'api_key');
+            let completion : GenerateContentStreamResult;
+            if (pastMessages.length > 0) {
+                const chat = genModel.startChat({history: pastMessages});
+                completion = await chat.sendMessageStream(lastMessage);
+            } else {
+                completion = await genModel.generateContentStream(lastMessage);
+            }
+            
+            for await (const chunk of completion.stream) {
+                if (interrupt) {
+                    return;
+                }
+                const content = chunk.text();
+                if (content) {
+                    yield content;  // Yield each chunk as it arrives
+                }
+            }
+        } catch (error) {
+            vscode.window.showErrorMessage(`Google - Error during streaming: ${error}`);
+        }
+    })();
+    
+    return {
+        stream,
+        abort: () => {interrupt = true;}
+    };
+}

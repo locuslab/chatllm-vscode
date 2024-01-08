@@ -10,7 +10,7 @@
         {
             "key": "api",
             "type": "enum",
-            "values": ["openai", "together"],
+            "values": ["openai", "together", "google"],
             "description": "Model API",
             "optional": false,
             "defaultValue": "openai"
@@ -21,6 +21,13 @@
             "description": "Truncate tokens",
             "optional": true,
             "defaultValue": null
+        },
+        {
+            "key": "truncateSysPrompt",
+            "type": "boolean",
+            "description": "Include system prompts in truncation",
+            "optional": true,
+            "defaultValue": true
         }
     ],
     "openai": [
@@ -201,6 +208,65 @@
             "optional": true,
             "defaultValue": null
         }
+    ],
+    "google": [
+        {
+            "key": "model",
+            "type": "string",
+            "description": "Google model name",
+            "optional": false,
+            "defaultValue": "gemini-pro"
+        },
+        {
+            "key": "api_key",
+            "type": "string",
+            "description": "Google API key",
+            "optional": false,
+            "defaultValue": ""
+        },
+        {
+            "key": "block_threshold",
+            "type": "enum",
+            "values": ["none", "high", "medium", "low"],
+            "description": "Threshold to block (all categories of) harmful content",
+            "optional": true,
+            "defaultValue": null
+        },
+        {
+            "key": "stopSequences",
+            "type": "object",
+            "description": "Stop token(s)",
+            "optional": true,
+            "defaultValue": null
+        },
+        {
+            "key": "maxOutputTokens",
+            "type": "number",
+            "description": "Max tokens to generate",
+            "optional": true,
+            "defaultValue": null
+        },
+        {
+            "key": "temperature",
+            "type": "number",
+            "description": "Temperature parameter",
+            "optional": true,
+            "defaultValue": null
+        },
+        {
+            "key": "topP",
+            "type": "number",
+            "description": "Top p parameter",
+            "optional": true,
+            "defaultValue": null
+        },
+        {
+            "key": "topK",
+            "type": "number",
+            "description": "Generate k completions",
+            "optional": true,
+            "defaultValue": null
+        }
     ]
 }
-
+ 

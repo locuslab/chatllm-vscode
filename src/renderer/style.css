@@ -4,8 +4,31 @@ pre code.hljs {
   padding: 1em
 }
 code.hljs {
-  padding: 3px 5px
+  padding: 3px 5px;
+  border-radius: 0px 0px 2px 2px;
 }
+
+.code-header {
+    display: block;
+    overflow-x: auto;
+    padding: 5px;
+    border-radius: 2px 2px 0px 0px;
+    background-color: #383c44; /* Make background color transparent or match pre */
+    text-align: right;
+}
+
+.copy-link {
+    user-select: none;  /* Prevent text selection */
+    -webkit-user-select: none;  /* Safari/Chrome specific */
+    -moz-user-select: none;  /* Firefox specific */
+    -ms-user-select: none;  /* Internet Explorer/Edge specific */
+    
+    font-family: Arial, sans-serif; /* Apply normal font instead of monospace */
+    z-index: 1; /* Ensure it's above the code block */
+    text-decoration: none; /* Optional: remove underline from hyperlink */
+    cursor: pointer;
+}
+
 /*
 
 Atom One Dark by Daniel Gamage

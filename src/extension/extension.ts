@@ -1,8 +1,10 @@
 import * as vscode from 'vscode';
 import { getEncoding, encodingForModel } from "js-tiktoken";
-import { callChatGPT, callTogether, OpenAIModelSettings, TogetherModelSettings } from './llmInterface.ts';
+import { callChatGPT, callTogether, callGoogle, 
+    OpenAIModelSettings, TogetherModelSettings, GoogleModelSettings, API } from './llmInterface.ts';
 import { ChatLLMNotebookSerializer } from './serializer.ts';
 import { SettingsEditorPanel } from './settingsEditor';
+import path from 'path';
 
 type ChatMessage = {
     role: string;
@@ -11,16 +13,11 @@ type ChatMessage = {
 };
 type ChatMessagesArray = ChatMessage[];
 
-enum API {
-    openai = "openai",
-    together = "together",
-    none = "none"
-}
-
 type ModelSpec = {
     name: string;
     api: API;
     truncateTokens?: number;
+    truncateSysPrompt? : boolean;
     [key : string]: any;
 };
 
@@ -57,15 +54,17 @@ export function activate(context: vscode.ExtensionContext) {
     vscode.window.onDidChangeNotebookEditorSelection(updateStatusBarItem);
 
     vscode.workspace.onDidChangeNotebookDocument(notebookChangedEvent);
+
+    const messageChannel = vscode.notebooks.createRendererMessaging('myMarkdownWithLatexRenderer');
+    messageChannel.onDidReceiveMessage(e => {
+        if (e.message.request === 'copyText') {
+            vscode.env.clipboard.writeText(e.message.data);
+        }
+    });
 }
-
-
 
 // This method is called when your extension is deactivated
 export function deactivate() {}
-
-
-
 
 
 class ChatLLMController {
@@ -119,10 +118,8 @@ class ChatLLMController {
             if (model) {
                 // convert to list of messages
                 const cells = [...cell.notebook.getCells().filter(c => c.index < cell.index), cell];
-                const messages = await updateMessagesAndMetadata(cells);
-                console.log(messages);
-                const collapsedMessages = collapseConsecutiveMessages(messages, model.truncateTokens);
-                console.log(collapsedMessages);
+                const messages = await getMessages(cells);
+                const collapsedMessages = collapseConsecutiveMessages(messages, model.truncateTokens, model.truncateSysPrompt);
 
 
                 let stream : AsyncGenerator<string, void, unknown>;
@@ -132,6 +129,8 @@ class ChatLLMController {
                     ({stream, abort} = callChatGPT(collapsedMessages, model as OpenAIModelSettings));
                 } else if (model.api === API.together) {
                     ({stream, abort} = callTogether(collapsedMessages, model as TogetherModelSettings));
+                } else if (model.api === API.google) {
+                    ({stream, abort} = callGoogle(collapsedMessages, model as GoogleModelSettings));
                 } else {
                     vscode.window.showErrorMessage("No valid model specified");
                     execution.end(true, Date.now());
@@ -157,87 +156,118 @@ class ChatLLMController {
     }
 }
 
+async function readFileContent(relativeFilePath) {
+    // Check if there is an open workspace folder
+    if (vscode.workspace.workspaceFolders && vscode.workspace.workspaceFolders.length > 0) {
+        const workspaceFolder = vscode.workspace.workspaceFolders[0];
+        const fullPathToFile = path.join(workspaceFolder.uri.fsPath, relativeFilePath);
+        const fileUri = vscode.Uri.file(fullPathToFile);
+        try {
+            const fileContentUint8Array = await vscode.workspace.fs.readFile(fileUri);
+            const fileContent = new TextDecoder().decode(fileContentUint8Array);
+            return fileContent;
+        } catch (e) {
+            vscode.window.showErrorMessage(`Could not read file: ${relativeFilePath}\nError:${e}`);
+            return '';
+        }
+    } else {
+        vscode.window.showErrorMessage('No workspace folder is open.');
+        return '';
+    }
+}
+
+
+async function processText(inputText) {
+    // Updated regex pattern to allow for optional whitespace
+    const regexPattern = /{{%%\s*(.*?)\s*%%}}/g;
+    
+    // Synchronous function to process each match
+    async function processMatch(match, command, filename) {
+        if (command === 'include' && filename) {
+            try {
+                const fileContent = await readFileContent(filename.trim());
+                return fileContent;
+            } catch (error) {
+                return ''; // Remove the match if there is an error
+            }
+        } else {
+            vscode.window.showErrorMessage(`Couldn't parse commnd ${command}`);
+            return ''; // If there's another command or no command, remove the match
+        }
+    }
+
+    // Asynchronously replace the matched content by processing each match
+    const matches = [...inputText.matchAll(regexPattern)];
+    for (const match of matches) {
+        const [command, filename] = match[1].trim().split(/\s+/); // Split command and filename
+        const replacement = await processMatch(match[0], command, filename);
+        inputText = inputText.replace(match[0], replacement);
+    }
+  
+  return inputText;
+}
+
+
 
 const tokenEncoder = getEncoding("gpt2");
-async function updateMessagesAndMetadata(cells : vscode.NotebookCell[]) {
+async function getMessages(cells : vscode.NotebookCell[]) {
     const messages: ChatMessage[] = [];
 
     for (const cell of cells) {
-        let rolesAndContents : ChatMessage[] = [];
-
         if (cell.document.languageId === 'chatllm-system-prompt') {
-            rolesAndContents.push({ role: 'system', content: cell.document.getText() || '' });
+            messages.push({ role: 'system', content: await processText(cell.document.getText()) || '' });
         } else if (cell.document.languageId.startsWith('chatllm')) {
-            rolesAndContents.push({ role: 'user', content: cell.document.getText() || '' });
+            messages.push({ role: 'user', content: await processText(cell.document.getText()) || '' });
 
             // Handle output only for previous cells, not for the current cell
             if (cell.outputs.length > 0 && cell !== cells[cells.length - 1]) {
                 const assistantMessageContent = new TextDecoder().decode(cell.outputs[0].items[0].data);
-                rolesAndContents.push({ role: 'assistant', content: assistantMessageContent });
+                messages.push({ role: 'assistant', content: assistantMessageContent });
             }
         } else if (cell.document.languageId === 'markdown') {
-            const cellText = cell.document.getText();
+            const cellText = await processText(cell.document.getText());
             const role = cellText.startsWith("#### (Chat Output)\n") ? "assistant" : "user";
-            rolesAndContents.push({ role, content: cellText });
-        }
-
-        for (const { role, content } of rolesAndContents) {
-            // Use existing token count or generate a new one and update metadata
-            let numTokens = cell.metadata?.tokens?.[role];
-            if (numTokens === undefined && content) {
-                numTokens = tokenEncoder.encode(content).length;
-                const tokensObj = cell.metadata?.tokens || {};
-                tokensObj[role] = numTokens;
-
-                const newMetadata = {...cell.metadata, tokens:tokensObj};
-
-                const nbEdit = vscode.NotebookEdit.updateCellMetadata(cell.index, newMetadata);
-                const workspaceEdit = new vscode.WorkspaceEdit();
-                workspaceEdit.set(cell.notebook.uri, [nbEdit]);
-                await vscode.workspace.applyEdit(workspaceEdit);
-            }
-
-            // Add the message to the array with the tokens
-            messages.push({ role, content, tokens:numTokens });
+            messages.push({ role, content: cellText });
         }
     }
     return messages;
 }
 
 
-function collapseConsecutiveMessages(messages: ChatMessagesArray, truncation: number | undefined): ChatMessagesArray {
+function collapseConsecutiveMessages(messages: ChatMessagesArray, truncation: number | undefined, truncateSysPrompt : boolean | undefined ): ChatMessagesArray {
     // Collapse together consecutive roles of the same type
 
-    const collapsedMessages: ChatMessagesArray = [{role:"system", content:"", tokens:0}];
+    const collapsedMessages: ChatMessagesArray = [{role:"system", content:""}];
     for (const message of messages) {
         if (message.role === "system") {
             collapsedMessages[0].content += "\n" + message.content;
-            collapsedMessages[0].tokens = (collapsedMessages[0].tokens || 0) + (message.tokens || 0);
         } else if (message.role === collapsedMessages[collapsedMessages.length-1].role) {
             collapsedMessages[collapsedMessages.length-1].content += "\n" + message.content;
-            collapsedMessages[collapsedMessages.length-1].content += 1 + (message.tokens || 0);
         } else {
             collapsedMessages.push({...message});
         }
     }
 
-    // Truncate input
+    // Truncate input, but always include system prompt and last input
     if (truncation) {
         let truncatedSubset : ChatMessagesArray = [];
+
         let currentSum = 0;
-        const max_tokens = truncation - (collapsedMessages[0].tokens || 0);
-        for (let i = collapsedMessages.length - 1; i >= 0; i--) {
-            if (currentSum + (collapsedMessages[i].tokens || 0) < max_tokens) {
-                truncatedSubset.unshift(collapsedMessages[i]);
-                currentSum += collapsedMessages[i].tokens || 0;
-            } else {
+        if ((typeof truncateSysPrompt !== "boolean") || truncateSysPrompt) {
+            currentSum += tokenEncoder.encode(collapsedMessages[0].content).length;
+        }
+
+        for (let i = collapsedMessages.length - 1; i >= 1; i--) {
+            truncatedSubset.unshift(collapsedMessages[i]);
+            currentSum += tokenEncoder.encode(collapsedMessages[i].content).length;
+            if (currentSum > truncation) {
                 break;
             }
         }
         truncatedSubset.unshift(collapsedMessages[0]);
-        return truncatedSubset.map(({tokens, ...rest}) => rest);
+        return truncatedSubset;
     } else {
-        return collapsedMessages.map(({tokens, ...rest}) => rest);
+        return collapsedMessages;
     }
 }
 
@@ -391,16 +421,6 @@ function notebookChangedEvent(event : vscode.NotebookDocumentChangeEvent) {
                     setCellModel(change.cell, undefined);
                 }
             }
-        }
-
-        if (change.cell.document.getText().length !== cellLengthMap.get(change.cell.document.uri.toString())) {
-            cellLengthMap.set(change.cell.document.uri.toString(), change.cell.document.getText().length);
-
-            const {tokens: _, ...newMetadata} = change.cell.metadata;
-            const nbEdit = vscode.NotebookEdit.updateCellMetadata(change.cell.index, newMetadata);
-            const workspaceEdit = new vscode.WorkspaceEdit();
-            workspaceEdit.set(change.cell.notebook.uri, [nbEdit]);
-            await vscode.workspace.applyEdit(workspaceEdit);
         }
     });
     updateStatusBarItem();
