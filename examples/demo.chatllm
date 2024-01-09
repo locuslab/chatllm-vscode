@@ -1,0 +1,42 @@
+{
+  "cells": [
+    {
+      "kind": 2,
+      "value": "You are a helpful assistant.\n\n{{%% include sys.prompt %%}}",
+      "languageId": "chatllm-system-prompt",
+      "outputs": []
+    },
+    {
+      "kind": 2,
+      "value": "What is your name?",
+      "languageId": "chatllm",
+      "outputs": [
+        {
+          "items": [
+            {
+              "data": "I don't have a personal name because I am an AI assistant designed by OpenAI, but you can call me ChatGPT or simply refer to me as your assistant. How may I assist you today?",
+              "mime": "text/markdown"
+            }
+          ]
+        }
+      ],
+      "model": "GPT-4 Turbo"
+    },
+    {
+      "kind": 2,
+      "value": "Write a python function to sort numbers.",
+      "languageId": "chatllm",
+      "outputs": [
+        {
+          "items": [
+            {
+              "data": "Sure! Below is a simple Python function that sorts a list of numbers in ascending order using the built-in `sorted()` function. You can also reverse the order by setting the `reverse` parameter to `True`.\n\n```python\ndef sort_numbers(numbers, descending=False):\n    return sorted(numbers, reverse=descending)\n\n# Example usage:\nnumbers_list = [3, 1, 4, 1, 5, 9, 2, 6, 5, 3, 5]\nsorted_numbers = sort_numbers(numbers_list)\n\nprint(\"Sorted numbers:\", sorted_numbers)  # Output will be in ascending order\n```\n\nIf you prefer to implement a sorting algorithm from scratch instead of using the built-in `sorted()` function, here's a simple implementation of the bubble sort algorithm:\n\n```python\ndef bubble_sort(numbers):\n    n = len(numbers)\n    for i in range(n):\n        for j in range(0, n-i-1):\n            if numbers[j] > numbers[j+1]:\n                # Swap the elements\n                numbers[j], numbers[j+1] = numbers[j+1], numbers[j]\n    return numbers\n\n# Example usage:\nnumbers_list = [3, 1, 4, 1, 5, 9, 2, 6, 5, 3, 5]\nsorted_numbers = bubble_sort(numbers_list)\n\nprint(\"Sorted numbers:\", sorted_numbers)\n```\n\nThis `bubble_sort` function will also sort the list of numbers in ascending order. Keep in mind that bubble sort is not the most efficient sorting algorithm for large datasets. For more efficient sorting, you might consider more advanced algorithms like quicksort or mergesort, but for simplicity, these examples should be sufficient for small lists.",
+              "mime": "text/markdown"
+            }
+          ]
+        }
+      ],
+      "model": "GPT-4 Turbo"
+    }
+  ]
+}

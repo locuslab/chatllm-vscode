@@ -1,6 +1,6 @@
 # chatllm-vscode README
 
-ChatLLM is a VSCode extension for interacting with LLM APIs in a flexible and long-form manner.  It leverages the VSCode notebook support to do so, creating a new type of notebook (.chatllm) files where you can interact with an (API-based) LLM system over a long document.  **Note: this plugin requires you to have your own OpenAI API key (or other LLM API key); it does not work with the free version of ChatGPT.**
+ChatLLM is a VSCode extension for interacting with LLM APIs in a flexible and long-form manner.  It leverages the VSCode notebook support to do so, creating a new type of notebook (.chatllm) files where you can interact with an (API-based) LLM system over a long document.  ***Note: this plugin requires you to have your own OpenAI API key (or other LLM API key); it does not work with the free version of ChatGPT.***
 
 Features include:
 - Have chat conversations directly within the VSCode IDE, leveraging the existing notebook UX.
@@ -65,7 +65,7 @@ The mechanism of ChatLLM is that all content _before_ the cell you are running w
 
 ### Dynamic file inclusion in prompts
 
-To include the contents of a file in your prompt, put the text `{{%% include <filename> }}` into one of your prompts.  I have found that this this is particularly useful in the (common) setting where I'm using ChatLLM to develop a code base, but I'm copying portion of the response into my code base, making changes, and maintaining things literal copies of the ChatLLM output.
+To include the contents of a file in your prompt, put the text `{{%% include <filename> }}` into one of your prompts.  Note that the filenames need to be specified relative to the ***currently open VSCode workspace folder***, not relative to the specific location of the notebook.  I have found that this this is particularly useful in the (common) setting where I'm using ChatLLM to develop a code base, but I'm copying portion of the response into my code base, making changes, and maintaining things literal copies of the ChatLLM output.
 
 ## Technology
 
