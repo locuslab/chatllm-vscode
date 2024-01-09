@@ -2,7 +2,7 @@
   "cells": [
     {
       "kind": 2,
-      "value": "You are a helpful assistant.\n\n{{%% include sys.prompt %%}}",
+      "value": "You are a helpful assistant.\n\n{{%% include examples/sys.prompt %%}}",
       "languageId": "chatllm-system-prompt",
       "outputs": []
     },
@@ -14,7 +14,29 @@
         {
           "items": [
             {
-              "data": "I don't have a personal name because I am an AI assistant designed by OpenAI, but you can call me ChatGPT or simply refer to me as your assistant. How may I assist you today?",
+              "data": "My name is Marvin. How can I assist you today?",
+              "mime": "text/markdown"
+            }
+          ]
+        }
+      ],
+      "model": "GPT-4 Turbo"
+    },
+    {
+      "kind": 1,
+      "value": "You can also write prompts in Markdown.  For example I can write the following function:\n$$ f(x) = \\sum_{i=1}^n x_i^3 $$",
+      "languageId": "markdown",
+      "outputs": []
+    },
+    {
+      "kind": 2,
+      "value": "Write a Python function that implements this function $f$.",
+      "languageId": "chatllm",
+      "outputs": [
+        {
+          "items": [
+            {
+              "data": "Certainly! Below is a Python function that implements the mathematical function \\( f(x) = \\sum_{i=1}^n x_i^3 \\):\n\n```python\ndef f(numbers):\n    return sum(x**3 for x in numbers)\n\n# Example usage:\n# Create a list of numbers for which you want to calculate the function\nnumbers = [1, 2, 3, 4]\n\n# Pass the list to the function 'f'\nresult = f(numbers)\n\nprint(\"The result is:\", result)\n```\n\nThis `f` function takes a list of numbers as input, calculates each number raised to the power of 3, and returns the sum of these cubes. The `sum` function and a generator expression are used to perform the summation of the cubes.",
               "mime": "text/markdown"
             }
           ]
@@ -31,6 +53,22 @@
           "items": [
             {
               "data": "Sure! Below is a simple Python function that sorts a list of numbers in ascending order using the built-in `sorted()` function. You can also reverse the order by setting the `reverse` parameter to `True`.\n\n```python\ndef sort_numbers(numbers, descending=False):\n    return sorted(numbers, reverse=descending)\n\n# Example usage:\nnumbers_list = [3, 1, 4, 1, 5, 9, 2, 6, 5, 3, 5]\nsorted_numbers = sort_numbers(numbers_list)\n\nprint(\"Sorted numbers:\", sorted_numbers)  # Output will be in ascending order\n```\n\nIf you prefer to implement a sorting algorithm from scratch instead of using the built-in `sorted()` function, here's a simple implementation of the bubble sort algorithm:\n\n```python\ndef bubble_sort(numbers):\n    n = len(numbers)\n    for i in range(n):\n        for j in range(0, n-i-1):\n            if numbers[j] > numbers[j+1]:\n                # Swap the elements\n                numbers[j], numbers[j+1] = numbers[j+1], numbers[j]\n    return numbers\n\n# Example usage:\nnumbers_list = [3, 1, 4, 1, 5, 9, 2, 6, 5, 3, 5]\nsorted_numbers = bubble_sort(numbers_list)\n\nprint(\"Sorted numbers:\", sorted_numbers)\n```\n\nThis `bubble_sort` function will also sort the list of numbers in ascending order. Keep in mind that bubble sort is not the most efficient sorting algorithm for large datasets. For more efficient sorting, you might consider more advanced algorithms like quicksort or mergesort, but for simplicity, these examples should be sufficient for small lists.",
+              "mime": "text/markdown"
+            }
+          ]
+        }
+      ],
+      "model": "GPT-4 Turbo"
+    },
+    {
+      "kind": 2,
+      "value": "Can you instead write the bubble sort in C++?",
+      "languageId": "chatllm",
+      "outputs": [
+        {
+          "items": [
+            {
+              "data": "Certainly! Below is the C++ implementation of the bubble sort algorithm:\n\n```cpp\n#include <iostream>\n#include <vector>\n\nvoid bubbleSort(std::vector<int>& nums) {\n    bool swapped;\n    int n = nums.size();\n    do {\n        swapped = false;\n        for (int i = 1; i < n; i++) {\n            if (nums[i - 1] > nums[i]) {\n                // Swap the elements\n                std::swap(nums[i - 1], nums[i]);\n                swapped = true;\n            }\n        }\n        n -= 1; // After each pass the largest element is at the end, so we can ignore it in the next pass\n    } while (swapped);\n}\n\nint main() {\n    std::vector<int> numbers = {3, 1, 4, 1, 5, 9, 2, 6, 5, 3, 5};\n\n    std::cout << \"Original numbers: \";\n    for (int num : numbers) {\n        std::cout << num << \" \";\n    }\n    std::cout << \"\\n\";\n\n    bubbleSort(numbers);\n\n    std::cout << \"Sorted numbers: \";\n    for (int num : numbers) {\n        std::cout << num << \" \";\n    }\n    std::cout << \"\\n\";\n\n    return 0;\n}\n```\n\nThis C++ code defines a `bubbleSort` function, which takes a vector of integers by reference and sorts it in ascending order using the bubble sort algorithm. The `main` function demonstrates how to use this `bubbleSort` function by sorting an example vector and then printing the sorted vector. You can compile and run this code using a C++ compiler like g++.",
               "mime": "text/markdown"
             }
           ]
