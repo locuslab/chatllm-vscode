@@ -46,6 +46,7 @@
             {
               "name": "GPT-4-Turbo",
               "api": "openai",
+              "truncateTokens": 3000,
               "model": "gpt-4-1106-preview",
               "api_key": ""
             }
