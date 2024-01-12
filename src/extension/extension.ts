@@ -127,7 +127,7 @@ class ChatLLMController {
                 } else if (model.api === API.google) {
                     ({stream, abort} = callGoogle(collapsedMessages, model as GoogleModelSettings));
                 } else {
-                    vscode.window.showErrorMessage("No valid model specified");
+                    vscode.window.showErrorMessage("No valid model specified.  Select a model for the cell using the 'ChatLLM: Select Model' command.");
                     execution.end(true, Date.now());
                     return;
                 }
