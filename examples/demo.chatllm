@@ -2,7 +2,7 @@
   "cells": [
     {
       "kind": 2,
-      "value": "You are a helpful assistant.\n\n{{%% include examples/sys.prompt %%}}",
+      "value": "You are a helpful assistant.\n\n{{%% include sys.prompt %%}}",
       "languageId": "chatllm-system-prompt",
       "outputs": []
     },
@@ -20,7 +20,7 @@
           ]
         }
       ],
-      "model": "GPT-4 Turbo"
+      "model": "GPT-4-Turbo"
     },
     {
       "kind": 1,
@@ -42,7 +42,7 @@
           ]
         }
       ],
-      "model": "GPT-4 Turbo"
+      "model": "GPT-4-Turbo"
     },
     {
       "kind": 2,
@@ -74,7 +74,7 @@
           ]
         }
       ],
-      "model": "GPT-4 Turbo"
+      "model": "GPT-4-Turbo"
     }
   ]
 }

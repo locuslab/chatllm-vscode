@@ -152,21 +152,26 @@ class ChatLLMController {
 }
 
 async function readFileContent(relativeFilePath) {
-    // Check if there is an open workspace folder
-    if (vscode.workspace.workspaceFolders && vscode.workspace.workspaceFolders.length > 0) {
-        const workspaceFolder = vscode.workspace.workspaceFolders[0];
-        const fullPathToFile = path.join(workspaceFolder.uri.fsPath, relativeFilePath);
+    // Get the currently active text editor
+    const activeEditor = vscode.window.activeTextEditor;
+    
+    if (activeEditor) {
+        // Get the directory of the currently open file
+        const currentFileDir = path.dirname(activeEditor.document.uri.fsPath);
+        // Create the full path to the relative file
+        const fullPathToFile = path.join(currentFileDir, relativeFilePath);
         const fileUri = vscode.Uri.file(fullPathToFile);
         try {
+            // Read the file content
             const fileContentUint8Array = await vscode.workspace.fs.readFile(fileUri);
             const fileContent = new TextDecoder().decode(fileContentUint8Array);
             return fileContent;
         } catch (e) {
-            vscode.window.showErrorMessage(`Could not read file: ${relativeFilePath}\nError:${e}`);
+            vscode.window.showErrorMessage(`Could not read file: ${relativeFilePath}\nError: ${e}`);
             return '';
         }
     } else {
-        vscode.window.showErrorMessage('No workspace folder is open.');
+        vscode.window.showErrorMessage('No active text editor is open.');
         return '';
     }
 }

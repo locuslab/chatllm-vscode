@@ -43,7 +43,7 @@
           ]
         }
       ],
-      "model": "GPT-4 Turbo",
+      "model": "GPT-4-Turbo",
       "tokens": {
         "user": 42,
         "assistant": 1304
@@ -63,7 +63,7 @@
           ]
         }
       ],
-      "model": "GPT-4 Turbo",
+      "model": "GPT-4-Turbo",
       "tokens": {
         "user": 56,
         "assistant": 1273
@@ -83,7 +83,7 @@
           ]
         }
       ],
-      "model": "GPT-4 Turbo",
+      "model": "GPT-4-Turbo",
       "tokens": {
         "user": 19,
         "assistant": 1068
@@ -103,7 +103,7 @@
           ]
         }
       ],
-      "model": "GPT-4 Turbo",
+      "model": "GPT-4-Turbo",
       "tokens": {
         "user": 1086,
         "assistant": 1190
@@ -123,7 +123,7 @@
           ]
         }
       ],
-      "model": "GPT-4 Turbo",
+      "model": "GPT-4-Turbo",
       "tokens": {
         "user": 24,
         "assistant": 546
@@ -143,7 +143,7 @@
           ]
         }
       ],
-      "model": "GPT-4 Turbo",
+      "model": "GPT-4-Turbo",
       "tokens": {
         "user": 40,
         "assistant": 926
@@ -163,7 +163,7 @@
           ]
         }
       ],
-      "model": "GPT-4 Turbo",
+      "model": "GPT-4-Turbo",
       "tokens": {
         "user": 77,
         "assistant": 1009
@@ -183,7 +183,7 @@
           ]
         }
       ],
-      "model": "GPT-4 Turbo",
+      "model": "GPT-4-Turbo",
       "tokens": {
         "user": 24,
         "assistant": 850
@@ -203,7 +203,7 @@
           ]
         }
       ],
-      "model": "GPT-4 Turbo",
+      "model": "GPT-4-Turbo",
       "tokens": {
         "user": 13,
         "assistant": 773
@@ -223,7 +223,7 @@
           ]
         }
       ],
-      "model": "GPT-4 Turbo",
+      "model": "GPT-4-Turbo",
       "tokens": {
         "user": 15,
         "assistant": 556
@@ -243,7 +243,7 @@
           ]
         }
       ],
-      "model": "GPT-4 Turbo",
+      "model": "GPT-4-Turbo",
       "tokens": {
         "user": 12,
         "assistant": 639
@@ -263,7 +263,7 @@
           ]
         }
       ],
-      "model": "GPT-4 Turbo",
+      "model": "GPT-4-Turbo",
       "tokens": {
         "user": 38,
         "assistant": 1139
@@ -283,7 +283,7 @@
           ]
         }
       ],
-      "model": "GPT-4 Turbo",
+      "model": "GPT-4-Turbo",
       "tokens": {
         "user": 27
       }
@@ -1842,7 +1842,7 @@
           ]
         }
       ],
-      "model": "GPT-4 Turbo",
+      "model": "GPT-4-Turbo",
       "tokens": {
         "user": 25,
         "assistant": 729
@@ -1862,7 +1862,7 @@
           ]
         }
       ],
-      "model": "GPT-4 Turbo",
+      "model": "GPT-4-Turbo",
       "tokens": {
         "user": 38,
         "assistant": 455
@@ -1882,7 +1882,7 @@
           ]
         }
       ],
-      "model": "GPT-4 Turbo",
+      "model": "GPT-4-Turbo",
       "tokens": {
         "user": 27,
         "assistant": 509
@@ -1902,7 +1902,7 @@
           ]
         }
       ],
-      "model": "GPT-4 Turbo",
+      "model": "GPT-4-Turbo",
       "tokens": {
         "user": 69,
         "assistant": 588
@@ -1922,7 +1922,7 @@
           ]
         }
       ],
-      "model": "GPT-4 Turbo",
+      "model": "GPT-4-Turbo",
       "tokens": {
         "user": 45,
         "assistant": 255
@@ -1942,7 +1942,7 @@
           ]
         }
       ],
-      "model": "GPT-4 Turbo",
+      "model": "GPT-4-Turbo",
       "tokens": {
         "user": 15,
         "assistant": 750
@@ -1962,7 +1962,7 @@
           ]
         }
       ],
-      "model": "GPT-4 Turbo",
+      "model": "GPT-4-Turbo",
       "tokens": {
         "user": 13,
         "assistant": 129
@@ -1982,7 +1982,7 @@
           ]
         }
       ],
-      "model": "GPT-4 Turbo",
+      "model": "GPT-4-Turbo",
       "tokens": {
         "user": 40,
         "assistant": 400
@@ -2002,7 +2002,7 @@
           ]
         }
       ],
-      "model": "GPT-4 Turbo",
+      "model": "GPT-4-Turbo",
       "tokens": {
         "user": 53,
         "assistant": 899
@@ -2022,7 +2022,7 @@
           ]
         }
       ],
-      "model": "GPT-4 Turbo",
+      "model": "GPT-4-Turbo",
       "tokens": {
         "user": 29,
         "assistant": 649
@@ -2042,7 +2042,7 @@
           ]
         }
       ],
-      "model": "GPT-4 Turbo",
+      "model": "GPT-4-Turbo",
       "tokens": {
         "user": 36,
         "assistant": 673
@@ -2062,7 +2062,7 @@
           ]
         }
       ],
-      "model": "GPT-4 Turbo",
+      "model": "GPT-4-Turbo",
       "tokens": {
         "user": 22,
         "assistant": 713
@@ -2082,7 +2082,7 @@
           ]
         }
       ],
-      "model": "GPT-4 Turbo",
+      "model": "GPT-4-Turbo",
       "tokens": {
         "user": 11,
         "assistant": 866
@@ -2102,7 +2102,7 @@
           ]
         }
       ],
-      "model": "GPT-4 Turbo",
+      "model": "GPT-4-Turbo",
       "tokens": {
         "user": 348,
         "assistant": 882
@@ -2122,7 +2122,7 @@
           ]
         }
       ],
-      "model": "GPT-4 Turbo",
+      "model": "GPT-4-Turbo",
       "tokens": {
         "user": 11,
         "assistant": 807
@@ -2142,7 +2142,7 @@
           ]
         }
       ],
-      "model": "GPT-4 Turbo",
+      "model": "GPT-4-Turbo",
       "tokens": {
         "user": 23
       }
