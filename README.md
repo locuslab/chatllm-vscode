@@ -90,4 +90,7 @@ The following issues are known:
 ### 1.0.0
 - Added support for dynamic file inclusion in prompts.
 - Added copy buttons to code.
-- Initial 
+
+### 1.1.0
+- Added Azure API support.
+- Make file inclusion always relative to notebook rather then workspace folder.
