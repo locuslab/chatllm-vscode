@@ -1,7 +1,8 @@
 import * as vscode from 'vscode';
 import { getEncoding, encodingForModel } from "js-tiktoken";
-import { callChatGPT, callTogether, callGoogle, 
-    OpenAIModelSettings, TogetherModelSettings, GoogleModelSettings, ModelSettings, API } from './llmInterface.ts';
+import { callChatGPT, callTogether, callGoogle, callAzure,
+    OpenAIModelSettings, TogetherModelSettings, GoogleModelSettings, AzureModelSettings,
+    ModelSettings, API } from './llmInterface.ts';
 import { ChatLLMNotebookSerializer } from './serializer.ts';
 import { SettingsEditorPanel } from './settingsEditor';
 import path from 'path';
@@ -126,6 +127,8 @@ class ChatLLMController {
                     ({stream, abort} = callTogether(collapsedMessages, model as TogetherModelSettings));
                 } else if (model.api === API.google) {
                     ({stream, abort} = callGoogle(collapsedMessages, model as GoogleModelSettings));
+                } else if (model.api === API.azure) {
+                    ({stream, abort} = callAzure(collapsedMessages, model as AzureModelSettings));
                 } else {
                     vscode.window.showErrorMessage("No valid model specified.  Select a model for the cell using the 'ChatLLM: Select Model' command.");
                     execution.end(true, Date.now());

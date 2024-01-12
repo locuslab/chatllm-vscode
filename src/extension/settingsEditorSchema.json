@@ -10,7 +10,7 @@
         {
             "key": "api",
             "type": "enum",
-            "values": ["openai", "together", "google"],
+            "values": ["openai", "together", "google", "azure"],
             "description": "Model API",
             "optional": false,
             "defaultValue": "openai"
@@ -264,6 +264,92 @@
             "key": "topK",
             "type": "number",
             "description": "Generate k completions",
+            "optional": true,
+            "defaultValue": null
+        }
+    ],
+    "azure": [
+        {
+            "key": "deploymentId",
+            "type": "string",
+            "description": "Azure Deployment ID",
+            "optional": false,
+            "defaultValue": "gpt-4-1106-preview"
+        },
+        {
+            "key": "azureApiKey",
+            "type": "string",
+            "description": "Azure API key",
+            "optional": false,
+            "defaultValue": ""
+        },
+        {
+            "key": "endpoint",
+            "type": "string",
+            "description": "Azure endpoint url",
+            "optional": false,
+            "defaultValue": ""
+        },
+        {
+            "key": "frequencyPenalty",
+            "type": "number",
+            "description": "Frequency penalty",
+            "optional": true,
+            "defaultValue": null
+        },
+        {
+            "key": "logitBias",
+            "type": "object",
+            "description": "Adjustments to logits",
+            "optional": true,
+            "defaultValue": null
+        },
+        {
+            "key": "maxTokens",
+            "type": "number",
+            "description": "Max generated tokens",
+            "optional": true,
+            "defaultValue": null
+        },
+        {
+            "key": "presencePenalty",
+            "type": "number",
+            "description": "Presence penalty",
+            "optional": true,
+            "defaultValue": null
+        },
+        {
+            "key": "responseFormat",
+            "type": "object",
+            "description": "Response format",
+            "optional": true,
+            "defaultValue": null
+        },
+        {
+            "key": "stop",
+            "type": "object",
+            "description": "Stop token(s)",
+            "optional": true,
+            "defaultValue": null
+        },
+        {
+            "key": "temperature",
+            "type": "number",
+            "description": "Temperature parameter",
+            "optional": true,
+            "defaultValue": null
+        },
+        {
+            "key": "topP",
+            "type": "number",
+            "description": "Top p parameter",
+            "optional": true,
+            "defaultValue": null
+        },
+        {
+            "key": "user",
+            "type": "string",
+            "description": "User identifier",
             "optional": true,
             "defaultValue": null
         }
