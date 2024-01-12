@@ -3,6 +3,7 @@ import OpenAI from 'openai';
 import { fetchEventSource } from '@microsoft/fetch-event-source';
 import {GoogleGenerativeAI, GenerateContentStreamResult, HarmBlockThreshold, HarmCategory } from '@google/generative-ai';
 import { safeJSON } from 'openai/core';
+import { OpenAIClient, AzureKeyCredential, ChatRequestMessage} from '@azure/openai';
 
 
 
@@ -10,6 +11,7 @@ export enum API {
     openai = "openai",
     together = "together",
     google = "google",
+    azure = "azure",
     none = "none"
 }
 
@@ -73,6 +75,22 @@ export interface GoogleModelSettings extends ModelSettings {
     temperature?: number,
     topP?: number,
     topK?: number,
+}
+
+// these are properties of the OpenAI API
+export interface AzureModelSettings extends ModelSettings {
+    deploymentId: string,
+    azureApiKey: string,
+    endpoint: string,
+    frequencyPenalty?: number,
+    logitBias?: object,
+    maxTokens?: number,
+    presencePenalty?: number,
+    responseFormat?: object,
+    stop?: string | Array<string>,
+    temperature?: number,
+    topP?: number,
+    user?: string
 }
 
 
@@ -320,5 +338,45 @@ export function callGoogle(messages : {role: string; content: string;}[], model:
     return {
         stream,
         abort: () => {interrupt = true;}
+    };
+}
+
+
+
+
+export function callAzure(messages : {role: string; content: string;}[], model: AzureModelSettings):
+{ stream: AsyncGenerator<string, void, unknown>; abort: () => void; } 
+{
+    const client = new OpenAIClient(model.endpoint, new AzureKeyCredential(model.azureApiKey));
+
+    // Add the current cell content
+    let completion : any;
+    const stream = (async function*() {
+        try {
+            // Call the OpenAI API
+
+            const remainingParams = removeKeys(model, 'name', 'api', 'truncateTokens', 'truncateSysPrompt', 
+                                               'deploymentId', 'azureApiKey', 'endpoint');
+
+            const completion = await client.streamChatCompletions(
+                model.deploymentId, 
+                messages as ChatRequestMessage[], 
+                remainingParams
+            );
+
+            for await (const chunk of completion) {
+                const content = chunk.choices[0].delta?.content;
+                if (content) {
+                    yield content;  // Yield each chunk as it arrives
+                }
+            }
+        } catch (error) {
+            vscode.window.showErrorMessage(`Azure - error during streaming: ${error}`);
+        }
+    })();
+    
+    return {
+        stream,
+        abort: () => completion.cancel()
     };
 }
