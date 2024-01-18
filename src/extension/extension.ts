@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 import { getEncoding, encodingForModel } from "js-tiktoken";
 import { callChatGPT, callTogether, callGoogle, callAzure,
     OpenAIModelSettings, TogetherModelSettings, GoogleModelSettings, AzureModelSettings,
-    ModelSettings, API, callOpenAIImageGen, OpenAIImageGenSettings, StreamAsyncGenerator } from './llmInterface.ts';
+    ModelSettings, API, callOpenAIImageGen, OpenAIImageGenSettings, StreamAsyncGenerator, callAzureImageGen, AzureImageGenSettings } from './llmInterface.ts';
 import { ChatLLMNotebookSerializer } from './serializer.ts';
 import { SettingsEditorPanel } from './settingsEditor';
 import path from 'path';
@@ -131,6 +131,8 @@ class ChatLLMController {
                     ({stream, abort} = callAzure(collapsedMessages, model as AzureModelSettings));
                 } else if (model.api === API.openaiImageGen) {
                     ({stream, abort} = callOpenAIImageGen(collapsedMessages, model as OpenAIImageGenSettings));
+                } else if (model.api === API.azureImageGen) {
+                    ({stream, abort} = callAzureImageGen(collapsedMessages, model as AzureImageGenSettings));
                 } else {
                     vscode.window.showErrorMessage("No valid model specified.  Select a model for the cell using the 'ChatLLM: Select Model' command.");
                     execution.end(true, Date.now());
@@ -146,7 +148,7 @@ class ChatLLMController {
                         }, 100);
                     });
                 }
-                execution.token.onCancellationRequested(() => {abort(); userCancelled = true;});
+                execution.token.onCancellationRequested(() => {userCancelled = true; abort(); });
 
                 let nextResult = stream.next();
                 while (true) {

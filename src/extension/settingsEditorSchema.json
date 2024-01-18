@@ -10,7 +10,7 @@
         {
             "key": "api",
             "type": "enum",
-            "values": ["openai", "together", "google", "azure", "openai-imagegen"],
+            "values": ["openai", "together", "google", "azure", "openai-imagegen", "azure-imagegen"],
             "description": "Model API",
             "optional": false,
             "defaultValue": "openai"
@@ -389,6 +389,64 @@
             "description": "Base URL, if custom",
             "optional": true,
             "defaultValue": null
+        },
+        {
+            "key": "n",
+            "type": "number",
+            "description": "Number of images to generate",
+            "optional": true,
+            "defaultValue": null
+        },
+        {
+            "key": "size",
+            "type": "string",
+            "description": "Image size as string, e.g. 1024x1024",
+            "optional": true,
+            "defaultValue": null
+        },
+        {
+            "key": "quality",
+            "type": "string",
+            "description": "Image quality, 'standard' or 'hd'",
+            "optional": true,
+            "defaultValue": null
+        },
+        {
+            "key": "style",
+            "type": "string",
+            "description": "Style description, 'vivid' or 'natural'",
+            "optional": true,
+            "defaultValue": null
+        },
+        {
+            "key": "user",
+            "type": "string",
+            "description": "User identifier",
+            "optional": true,
+            "defaultValue": null
+        }
+    ],
+    "azure-imagegen": [
+        {
+            "key": "deploymentId",
+            "type": "string",
+            "description": "Azure Deployment ID",
+            "optional": false,
+            "defaultValue": "gpt-4-1106-preview"
+        },
+        {
+            "key": "azureApiKey",
+            "type": "string",
+            "description": "Azure API key",
+            "optional": false,
+            "defaultValue": ""
+        },
+        {
+            "key": "endpoint",
+            "type": "string",
+            "description": "Azure endpoint url",
+            "optional": false,
+            "defaultValue": ""
         },
         {
             "key": "n",

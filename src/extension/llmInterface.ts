@@ -5,7 +5,7 @@ import {GoogleGenerativeAI, GenerateContentStreamResult, HarmBlockThreshold, Har
 import { APIPromise, safeJSON } from 'openai/core';
 import { OpenAIClient, AzureKeyCredential, ChatRequestMessage} from '@azure/openai';
 import { Stream } from 'openai/streaming';
-import { readFileContent } from './extension.ts'
+import { readFileContent } from './extension.ts';
 
 
 
@@ -15,6 +15,7 @@ export enum API {
     google = "google",
     azure = "azure",
     openaiImageGen = "openai-imagegen",
+    azureImageGen = "azure-imagegen",
     none = "none"
 }
 
@@ -110,6 +111,17 @@ export interface AzureModelSettings extends ModelSettings {
     user?: string
 }
 
+export interface AzureImageGenSettings extends ModelSettings {
+    deploymentId: string,
+    azureApiKey: string,
+    endpoint: string,
+    n?: number,
+    size?: string,
+    quality?: string,
+    style?: string,
+    user?: string
+}
+
 
 
 function extractMarkdownImages(markdownText: string): { updatedText: string; images: { altText: string; imageUrl: string }[] } {
@@ -150,6 +162,7 @@ function removeImages(messages : {role: string; content: string;}[])
 }
 
 async function handleOpenAIImages(messages : {role: string; content: string | any;}[], enableVision: boolean) {
+    
     for (const message of messages) {
         if (message.role === 'user') {
             const { updatedText, images } = extractMarkdownImages(message.content);
@@ -161,11 +174,11 @@ async function handleOpenAIImages(messages : {role: string; content: string | an
                         if (altText === '%%ChatLLM Inline Image') {
                             return { type: "image_url", image_url:{url: imageUrl }};
                         } else if (imageUrl.startsWith("http") || imageUrl.startsWith("https") ) {
-                            return { type:"image_url", image_url:{url:imageUrl}}
+                            return { type:"image_url", image_url:{url:imageUrl}};
                         } else {
                             const fileContent = await readFileContent(imageUrl);
                             const serializedData = Buffer.from(fileContent).toString('base64');
-                            return { type:"image_url", image_url:{url:"data:image/png;base64," + serializedData}}
+                            return { type:"image_url", image_url:{url:"data:image/png;base64," + serializedData}};
                         }
                     }))
                 ];
@@ -241,14 +254,6 @@ export function callOpenAIImageGen(messages : {role: string; content: string | a
     // Add the current cell content
         const stream = (async function*() {
         try {
-            // remove images
-            for (const message of messages) {
-                if (message.role === 'user') {
-                    const { updatedText, images } = extractMarkdownImages(message.content);
-                    message.content = updatedText;
-                }
-            }
-
             // Call the OpenAI API
             const remainingParams = removeKeys(model, 'name', 'api', 'truncateTokens', 'truncateSysPrompt', 'model', 'api_key', 'url');
             const image = await openai.images.generate({
@@ -499,9 +504,10 @@ export function callAzure(messages : {role: string; content: string | any;}[], m
         try {
             // Call the OpenAI API
             messages = await handleOpenAIImages(messages, model.enableVision || false);
+            console.log(messages);
 
             const remainingParams = removeKeys(model, 'name', 'api', 'truncateTokens', 'truncateSysPrompt', 
-                                               'deploymentId', 'azureApiKey', 'endpoint');
+                                               'deploymentId', 'azureApiKey', 'endpoint', 'enableVision');
 
             const completion = await client.streamChatCompletions(
                 model.deploymentId, 
@@ -510,9 +516,11 @@ export function callAzure(messages : {role: string; content: string | any;}[], m
             );
 
             for await (const chunk of completion) {
-                const content = chunk.choices[0].delta?.content;
-                if (content) {
-                    yield content;  // Yield each chunk as it arrives
+                if (chunk.choices.length > 0) {
+                    const content = chunk.choices[0].delta?.content;
+                    if (content) {
+                        yield content;  // Yield each chunk as it arrives
+                    }
                 }
             }
         } catch (error) {
@@ -523,6 +531,46 @@ export function callAzure(messages : {role: string; content: string | any;}[], m
     return {
         stream,
         abort: () => completion.cancel()
+    };
+}
+
+
+export function callAzureImageGen(messages : {role: string; content: string | any;}[], model: AzureImageGenSettings):
+{ stream: StreamAsyncGenerator; abort: () => void; } 
+{
+    const client = new OpenAIClient(model.endpoint, new AzureKeyCredential(model.azureApiKey));
+    messages = removeImages(messages);
+
+    let completion : any;
+    // Add the current cell content
+    const stream = (async function*() {
+        try {
+            // Call the OpenAI API
+            const remainingParams = removeKeys(model, 'name', 'api', 'truncateTokens', 'truncateSysPrompt','deploymentId', 'azureApiKey', 'endpoint');
+
+
+            const image = await client.getImages(
+                model.deploymentId, 
+                messages[messages.length-1]["content"], 
+                {responseFormat: "b64_json", ...remainingParams}
+            );
+
+            if (image.data[0].base64Data) {
+                yield {output_type:"image/png", content:image.data[0].base64Data};
+                if (image.data[0].revisedPrompt) {
+                    yield {output_type:"text/markdown", content:image.data[0].revisedPrompt};
+                }
+            }
+            
+
+        } catch (error) {
+            vscode.window.showErrorMessage(`OpenAI Image Gen - error during streaming: ${error}`);
+        }
+    })();
+    
+    return {
+        stream,
+        abort: () => {return;}
     };
 }
 
