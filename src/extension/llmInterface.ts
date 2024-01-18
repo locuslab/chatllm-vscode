@@ -6,6 +6,8 @@ import { APIPromise, safeJSON } from 'openai/core';
 import { OpenAIClient, AzureKeyCredential, ChatRequestMessage} from '@azure/openai';
 import { Stream } from 'openai/streaming';
 import { readFileContent } from './extension.ts';
+import { useIdentityPlugin, DefaultAzureCredential } from "@azure/identity";
+import { vsCodePlugin } from "@azure/identity-vscode";
 
 
 
@@ -495,7 +497,8 @@ export function callGoogle(messages : {role: string; content: string;}[], model:
 export function callAzure(messages : {role: string; content: string | any;}[], model: AzureModelSettings):
 { stream: StreamAsyncGenerator; abort: () => void; } 
 {
-    const client = new OpenAIClient(model.endpoint, new AzureKeyCredential(model.azureApiKey));
+    //const client = new OpenAIClient(model.endpoint, new AzureKeyCredential(model.azureApiKey));
+    const client = new OpenAIClient(model.endpoint, new DefaultAzureCredential());
 
     // Add the current cell content
     let completion : any;
