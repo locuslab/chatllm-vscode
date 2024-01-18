@@ -12,16 +12,40 @@ const md = markdownIt().use(markdownItMathjax3).use(markdownItHighlightJS, {});
 export const activate: ActivationFunction = (context) => {
     return {
         renderOutputItem(data, element) {
-            // Render markdown content
+            
             //const renderedContent = md.render();
             
             // Set the innerHTML of the element to the rendered markdown
+
+
+            let markdownText = data.text();
+
+            // Goal here is to replace \[ \]-style equations with $$ $$, which appears to be what markdown-it displays
+            // But it's not working for now, and interferes with code too much, so we'll just remove it for now. TODO
+
+            // const codeSegments : string[] = [];
+            // const placeholder = 'CODE_SEGMENT_PLACEHOLDER';
             
-            const formattedHTML = md.render(data.text()
-                                            .replace(/\\\[/g,'$$$$')
-                                            .replace(/\\\]/g,'$$$$')
-                                            .replace(/\\\(\s*/g,'$')
-                                            .replace(/\s*\\\)/g,'$'));
+            // // Find sequences of backtick blocks (closed or not closed), and inline backticks
+            // markdownText = markdownText.replace(/(```[\s\S]*?(?:```|$))|(`[\s\S]*?(?:`|$))/gm, match => {
+            //     codeSegments.push(match);
+            //     return placeholder;
+            // });
+
+            // // Perform substitutions on the rest of the text
+            // markdownText = (markdownText.replace(/\\\[/g,'$$$$')
+            //                     .replace(/\\\]/g,'$$$$')
+            //                     .replace(/\\\(\s*/g,'$')
+            //                     .replace(/\s*\\\)/g,'$'));
+
+            // // Restore the code segments
+            // codeSegments.forEach(segment => {
+            //     markdownText = markdownText.replace(placeholder, segment);
+            // });
+            
+            
+            const formattedHTML = md.render(markdownText);
+                                            
 
             if (context.postMessage) {
                 const parser = new DOMParser();

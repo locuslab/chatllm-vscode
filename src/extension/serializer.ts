@@ -1,7 +1,15 @@
 import * as vscode from 'vscode';
 
 export class ChatLLMNotebookSerializer implements vscode.NotebookSerializer {
-  
+
+    private readonly textBasedMimeTypes: string[] = [
+        'text/plain',
+        'text/markdown',
+        'text/html',
+        'application/json'
+        // Include any other text-based MIME types you need to support
+    ];
+
     async deserializeNotebook(content: Uint8Array, _token: vscode.CancellationToken): Promise<vscode.NotebookData> {
         if (content.length === 0) {
             // When the file is new or empty, return a new NotebookData with no cells
@@ -37,9 +45,14 @@ export class ChatLLMNotebookSerializer implements vscode.NotebookSerializer {
             if (cell.outputs) {
                 cellData.outputs = cell.outputs.map((output: any) => {
                     const outputItems = output.items.map((item: any) => {
-                        // Assume text-based outputs are stored as strings; binary outputs need special handling
-                        let data = new TextEncoder().encode(item.data);
-                        return new vscode.NotebookCellOutputItem(data, item.mime);
+                        if (this.textBasedMimeTypes.includes(item.mime)) {
+                            const data = new TextEncoder().encode(item.data);
+                            return new vscode.NotebookCellOutputItem(data, item.mime);
+                        } else {
+                            const binaryData = Buffer.from(item.data, 'base64');
+                            return new vscode.NotebookCellOutputItem(binaryData, item.mime);
+                        }
+
                     });
                     return new vscode.NotebookCellOutput(outputItems);
                 });
@@ -59,8 +72,13 @@ export class ChatLLMNotebookSerializer implements vscode.NotebookSerializer {
                 outputs: cell.outputs?.map(output => ({
                     items: output.items.map(item => {
                         // Determine how to serialize based on MIME type
-                        let serializedData = new TextDecoder().decode(item.data);
-                        return { data: serializedData, mime: item.mime };
+                        if (this.textBasedMimeTypes.includes(item.mime)) {
+                            const serializedData = new TextDecoder().decode(item.data);
+                            return { data: serializedData, mime: item.mime };
+                        } else {
+                            const serializedData = Buffer.from(item.data).toString('base64');
+                            return { data: serializedData, mime: item.mime };
+                        }
                     })
                 })),
                 ...(cell.metadata?.model !== undefined && {model:cell.metadata.model}),

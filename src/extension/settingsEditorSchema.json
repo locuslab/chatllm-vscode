@@ -10,7 +10,7 @@
         {
             "key": "api",
             "type": "enum",
-            "values": ["openai", "together", "google", "azure"],
+            "values": ["openai", "together", "google", "azure", "openai-imagegen"],
             "description": "Model API",
             "optional": false,
             "defaultValue": "openai"
@@ -51,6 +51,13 @@
             "description": "Base URL, if custom",
             "optional": true,
             "defaultValue": null
+        },
+        {
+            "key": "enable_vision",
+            "type": "boolean",
+            "description": "Enable GPT Vision features",
+            "optional": true,
+            "defaultValue": false
         },
         {
             "key": "frequency_penalty",
@@ -291,6 +298,13 @@
             "defaultValue": ""
         },
         {
+            "key": "enableVision",
+            "type": "boolean",
+            "description": "Enable GPT Vision features",
+            "optional": true,
+            "defaultValue": false
+        },
+        {
             "key": "frequencyPenalty",
             "type": "number",
             "description": "Frequency penalty",
@@ -343,6 +357,64 @@
             "key": "topP",
             "type": "number",
             "description": "Top p parameter",
+            "optional": true,
+            "defaultValue": null
+        },
+        {
+            "key": "user",
+            "type": "string",
+            "description": "User identifier",
+            "optional": true,
+            "defaultValue": null
+        }
+    ],
+    "openai-imagegen": [
+        {
+            "key": "model",
+            "type": "string",
+            "description": "OpenAI Image Gen Model",
+            "optional": false,
+            "defaultValue": "dalle-3"
+        },
+        {
+            "key": "api_key",
+            "type": "string",
+            "description": "OpenAI API key",
+            "optional": false,
+            "defaultValue": ""
+        },
+        {
+            "key": "url",
+            "type": "string",
+            "description": "Base URL, if custom",
+            "optional": true,
+            "defaultValue": null
+        },
+        {
+            "key": "n",
+            "type": "number",
+            "description": "Number of images to generate",
+            "optional": true,
+            "defaultValue": null
+        },
+        {
+            "key": "size",
+            "type": "string",
+            "description": "Image size as string, e.g. 1024x1024",
+            "optional": true,
+            "defaultValue": null
+        },
+        {
+            "key": "quality",
+            "type": "string",
+            "description": "Image quality, 'standard' or 'hd'",
+            "optional": true,
+            "defaultValue": null
+        },
+        {
+            "key": "style",
+            "type": "string",
+            "description": "Style description, 'vivid' or 'natural'",
             "optional": true,
             "defaultValue": null
         },
