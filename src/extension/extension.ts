@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 import { getEncoding, encodingForModel } from "js-tiktoken";
 import { callChatGPT, callTogether, callGoogle, callAzure,
     OpenAIModelSettings, TogetherModelSettings, GoogleModelSettings, AzureModelSettings,
-    ModelSettings, API } from './llmInterface.ts';
+    ModelSettings, API, callOpenAIImageGen, OpenAIImageGenSettings, StreamAsyncGenerator, callAzureImageGen, AzureImageGenSettings } from './llmInterface.ts';
 import { ChatLLMNotebookSerializer } from './serializer.ts';
 import { SettingsEditorPanel } from './settingsEditor';
 import path from 'path';
@@ -118,7 +118,7 @@ class ChatLLMController {
                 const collapsedMessages = collapseConsecutiveMessages(messages, model.truncateTokens, model.truncateSysPrompt);
 
 
-                let stream : AsyncGenerator<string, void, unknown>;
+                let stream : StreamAsyncGenerator;
                 let abort : () => void;
 
                 if (model.api === API.openai) {
@@ -129,23 +129,60 @@ class ChatLLMController {
                     ({stream, abort} = callGoogle(collapsedMessages, model as GoogleModelSettings));
                 } else if (model.api === API.azure) {
                     ({stream, abort} = callAzure(collapsedMessages, model as AzureModelSettings));
+                } else if (model.api === API.openaiImageGen) {
+                    ({stream, abort} = callOpenAIImageGen(collapsedMessages, model as OpenAIImageGenSettings));
+                } else if (model.api === API.azureImageGen) {
+                    ({stream, abort} = callAzureImageGen(collapsedMessages, model as AzureImageGenSettings));
                 } else {
                     vscode.window.showErrorMessage("No valid model specified.  Select a model for the cell using the 'ChatLLM: Select Model' command.");
                     execution.end(true, Date.now());
                     return;
                 }
 
-                let accumulatedResponse = '';
-                execution.token.onCancellationRequested(() => abort());
+                const response = {};
+                let userCancelled = false;
+                function timer() {
+                    return new Promise(resolve => {
+                        setTimeout(() => {
+                            resolve({ value: undefined, done: false });
+                        }, 100);
+                    });
+                }
+                execution.token.onCancellationRequested(() => {userCancelled = true; abort(); });
 
-                for await (const response of stream) {
-                    accumulatedResponse += response;
-                    // Update the cell's output with the accumulated content
-                    execution.replaceOutput([
-                        new vscode.NotebookCellOutput([
-                            vscode.NotebookCellOutputItem.text(accumulatedResponse, 'text/markdown')
-                        ])
-                    ]);
+                let nextResult = stream.next();
+                while (true) {
+                    const result = await Promise.race([nextResult, timer()]) as {value: string | {output_type:string, content:string}, done: boolean};
+                    if (result.value) {
+                        if (typeof(result.value) === 'string') {
+                            response['text/markdown'] = (response['text/markdown'] || '') + result.value;
+                        } else if (result.value.output_type === 'text/markdown') {
+                            response['text/markdown'] = (response['text/markdown'] || '') + result.value.content;
+                        } else if (result.value.output_type === 'image/png') {
+                            response['image/png'] = (response['image/png'] || '') + result.value.content;
+                        }
+
+                        const cell_outputs : vscode.NotebookCellOutput[] = [];
+                        if (response['image/png'] !== undefined) {
+                            const imageData = Buffer.from(response['image/png'], 'base64');
+                            cell_outputs.push(new vscode.NotebookCellOutput([
+                                new vscode.NotebookCellOutputItem(imageData, 'image/png')]));
+                        }
+                        if (response['text/markdown'] !== undefined) {
+
+                            cell_outputs.push(new vscode.NotebookCellOutput([
+                                vscode.NotebookCellOutputItem.text(response['text/markdown'], 'text/markdown')]));
+                        }
+                        execution.replaceOutput(cell_outputs);
+
+
+
+                        nextResult = stream.next();
+                    }
+                
+                    if (result.done || userCancelled) {
+                        break;
+                    }
                 }
             }
         }
@@ -154,7 +191,7 @@ class ChatLLMController {
     }
 }
 
-async function readFileContent(relativeFilePath) {
+export async function readFileContent(relativeFilePath) {
     // Get the currently active text editor
     const activeEditor = vscode.window.activeTextEditor;
     
@@ -164,18 +201,10 @@ async function readFileContent(relativeFilePath) {
         // Create the full path to the relative file
         const fullPathToFile = path.join(currentFileDir, relativeFilePath);
         const fileUri = vscode.Uri.file(fullPathToFile);
-        try {
-            // Read the file content
-            const fileContentUint8Array = await vscode.workspace.fs.readFile(fileUri);
-            const fileContent = new TextDecoder().decode(fileContentUint8Array);
-            return fileContent;
-        } catch (e) {
-            vscode.window.showErrorMessage(`Could not read file: ${relativeFilePath}\nError: ${e}`);
-            return '';
-        }
+        const fileContentUint8Array = await vscode.workspace.fs.readFile(fileUri);
+        return fileContentUint8Array;
     } else {
-        vscode.window.showErrorMessage('No active text editor is open.');
-        return '';
+        throw Error('No active text editor');
     }
 }
 
@@ -189,8 +218,9 @@ async function processText(inputText) {
         if (command === 'include' && filename) {
             try {
                 const fileContent = await readFileContent(filename.trim());
-                return fileContent;
+                return new TextDecoder().decode(fileContent);
             } catch (error) {
+                vscode.window.showErrorMessage(`Could not read file: ${filename.trim()}\nError: ${error}`);
                 return ''; // Remove the match if there is an error
             }
         } else {
@@ -224,8 +254,17 @@ async function getMessages(cells : vscode.NotebookCell[]) {
 
             // Handle output only for previous cells, not for the current cell
             if (cell.outputs.length > 0 && cell !== cells[cells.length - 1]) {
-                const assistantMessageContent = new TextDecoder().decode(cell.outputs[0].items[0].data);
-                messages.push({ role: 'assistant', content: assistantMessageContent });
+                for (const output of cell.outputs) {
+                    if (output.items[0].mime === 'text/markdown') {
+                        const assistantMessageContent = new TextDecoder().decode(output.items[0].data);
+                        messages.push({ role: 'assistant', content: assistantMessageContent });
+                    } else if (output.items[0].mime === 'image/png') {
+                        // this is a very hacky way to handle API-generated images, so probably want to fix later
+                        const base64_img = Buffer.from(output.items[0].data).toString('base64');
+                        messages.push({ role: 'user', content: `![%%ChatLLM Inline Image](data:image/png;base64,${base64_img})`});
+                    }
+                }
+                
             }
         } else if (cell.document.languageId === 'markdown') {
             const cellText = await processText(cell.document.getText());

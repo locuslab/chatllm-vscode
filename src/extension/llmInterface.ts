@@ -2,8 +2,10 @@ import * as vscode from 'vscode';
 import OpenAI from 'openai';
 import { fetchEventSource } from '@microsoft/fetch-event-source';
 import {GoogleGenerativeAI, GenerateContentStreamResult, HarmBlockThreshold, HarmCategory } from '@google/generative-ai';
-import { safeJSON } from 'openai/core';
+import { APIPromise, safeJSON } from 'openai/core';
 import { OpenAIClient, AzureKeyCredential, ChatRequestMessage} from '@azure/openai';
+import { Stream } from 'openai/streaming';
+import { readFileContent } from './extension.ts';
 
 
 
@@ -12,6 +14,8 @@ export enum API {
     together = "together",
     google = "google",
     azure = "azure",
+    openaiImageGen = "openai-imagegen",
+    azureImageGen = "azure-imagegen",
     none = "none"
 }
 
@@ -29,6 +33,7 @@ export interface OpenAIModelSettings extends ModelSettings {
     model: string,
     api_key: string,
     url?: string,
+    enable_vision? : boolean,
     frequency_penalty?: number,
     logit_bias?: object,
     max_tokens?: number,
@@ -42,6 +47,18 @@ export interface OpenAIModelSettings extends ModelSettings {
     tool_choice?: string | object,
     user?: string
 }
+
+export interface OpenAIImageGenSettings extends ModelSettings {
+    model: string,
+    api_key: string,
+    url?: string,
+    n?: number,
+    size?: string,
+    quality?: string,
+    style?: string,
+    user?: string
+}
+
 
 
 export interface TogetherModelSettings extends ModelSettings {
@@ -82,6 +99,7 @@ export interface AzureModelSettings extends ModelSettings {
     deploymentId: string,
     azureApiKey: string,
     endpoint: string,
+    enableVision? : boolean,
     frequencyPenalty?: number,
     logitBias?: object,
     maxTokens?: number,
@@ -93,6 +111,35 @@ export interface AzureModelSettings extends ModelSettings {
     user?: string
 }
 
+export interface AzureImageGenSettings extends ModelSettings {
+    deploymentId: string,
+    azureApiKey: string,
+    endpoint: string,
+    n?: number,
+    size?: string,
+    quality?: string,
+    style?: string,
+    user?: string
+}
+
+
+
+function extractMarkdownImages(markdownText: string): { updatedText: string; images: { altText: string; imageUrl: string }[] } {
+    const imageRegex = /!\[([^[]+)]\((.*?)\)/g;
+    let images: { altText: string; imageUrl: string }[] = [];
+
+    // Replace the markdown image syntax and collect image information
+    const updatedText = markdownText.replace(imageRegex, (match, altText, imageUrl) => {
+        // Add the altText and imageUrl to the images array
+        images.push({ altText, imageUrl });
+        // Return an empty string to remove the markdown image from the original text
+        return '';
+    });
+    // Return the updated markdown string and the array of image information
+    return { updatedText, images };
+}
+
+
 
 function removeKeys(obj, ...keysToRemove) {
     return Object.keys(obj).reduce((acc, key) => {
@@ -103,28 +150,79 @@ function removeKeys(obj, ...keysToRemove) {
     }, {});
 }
 
+function removeImages(messages : {role: string; content: string;}[])
+{
+    for (const message of messages) {
+        if (message.role === 'user') {
+            const { updatedText, images } = extractMarkdownImages(message.content);
+            message.content = updatedText;
+        }
+    }
+    return messages;
+}
 
-export function callChatGPT(messages : {role: string; content: string;}[], model: OpenAIModelSettings):
-{ stream: AsyncGenerator<string, void, unknown>; abort: () => void; } 
+async function handleOpenAIImages(messages : {role: string; content: string | any;}[], enableVision: boolean) {
+    
+    for (const message of messages) {
+        if (message.role === 'user') {
+            const { updatedText, images } = extractMarkdownImages(message.content);
+            message.content = updatedText;
+            if (images.length > 0 && enableVision) {
+                message.content = [
+                    {type:'text', text:updatedText},
+                    ... await Promise.all(images.map(async ({ altText, imageUrl }) => {
+                        if (altText === '%%ChatLLM Inline Image') {
+                            return { type: "image_url", image_url:{url: imageUrl }};
+                        } else if (imageUrl.startsWith("http") || imageUrl.startsWith("https") ) {
+                            return { type:"image_url", image_url:{url:imageUrl}};
+                        } else {
+                            const fileContent = await readFileContent(imageUrl);
+                            const serializedData = Buffer.from(fileContent).toString('base64');
+                            return { type:"image_url", image_url:{url:"data:image/png;base64," + serializedData}};
+                        }
+                    }))
+                ];
+            }
+        }
+    }
+    return messages;
+}
+
+
+
+export type StreamAsyncGenerator = AsyncGenerator<string | { output_type: string; content: string }, void, unknown>;
+
+
+
+export function callChatGPT(messages : {role: string; content: string | any;}[], model: OpenAIModelSettings):
+{ stream: StreamAsyncGenerator; abort: () => void; } 
 {
     const openai = new OpenAI({
         apiKey: model.api_key,
         ...(model.url !== undefined && { baseURL: model.url })
     }); // Initialize with your API credentials
 
+    
+    console.log(messages);
+
+
     // Add the current cell content
-    let completion : any;
+    let completion : Stream<OpenAI.Chat.Completions.ChatCompletionChunk>;
     const stream = (async function*() {
         try {
-            // Call the OpenAI API
+            // handle images in the user text
+            messages = await handleOpenAIImages(messages, model.enable_vision || false);
 
-            const remainingParams = removeKeys(model, 'name', 'api', 'truncateTokens', 'truncateSysPrompt', 'model', 'api_key', 'url');
+            // Call the OpenAI API
+            const remainingParams = removeKeys(model, 'name', 'api', 'truncateTokens', 'truncateSysPrompt', 'model', 'api_key', 'url', 'enable_vision');
             completion = await openai.chat.completions.create({
                 model: model.model,
                 messages: messages as OpenAI.Chat.Completions.ChatCompletionMessageParam[],
                 stream: true,
                 ...remainingParams
             });
+
+
             
             for await (const chunk of completion) {
                 const content = chunk.choices[0].delta.content;
@@ -144,12 +242,56 @@ export function callChatGPT(messages : {role: string; content: string;}[], model
 }
 
 
+export function callOpenAIImageGen(messages : {role: string; content: string | any;}[], model: OpenAIImageGenSettings):
+{ stream: StreamAsyncGenerator; abort: () => void; } 
+{
+    const openai = new OpenAI({
+        apiKey: model.api_key,
+        ...(model.url !== undefined && { baseURL: model.url })
+    }); // Initialize with your API credentials
+    messages = removeImages(messages);
+
+    // Add the current cell content
+        const stream = (async function*() {
+        try {
+            // Call the OpenAI API
+            const remainingParams = removeKeys(model, 'name', 'api', 'truncateTokens', 'truncateSysPrompt', 'model', 'api_key', 'url');
+            const image = await openai.images.generate({
+                model: model.model,
+                prompt: messages[messages.length-1]["content"],
+                response_format: "b64_json",
+                ...remainingParams
+            });
+
+            if (image.data[0].b64_json) {
+                yield {output_type:"image/png", content:image.data[0].b64_json};
+                if (image.data[0].revised_prompt) {
+                    yield {output_type:"text/markdown", content:image.data[0].revised_prompt};
+                }
+            }
+            
+
+        } catch (error) {
+            vscode.window.showErrorMessage(`OpenAI Image Gen - error during streaming: ${error}`);
+        }
+    })();
+    
+    return {
+        stream,
+        abort: () => {return;}
+    };
+}
+
+
 
 export function callTogether(
     messages: { role: string; content: string; }[],
     model: TogetherModelSettings
-): { stream: AsyncGenerator<string, void, unknown>; abort: () => void; }  {
+): { stream: StreamAsyncGenerator; abort: () => void; }  {
     const url = model.url || 'https://api.together.xyz/v1/completions';
+
+
+    messages = removeImages(messages);
     
     // Event queue to store messages
     const prompt = messages.map((message, index, arr) => {
@@ -253,22 +395,28 @@ export function callTogether(
 }
 
 
-const thresholdMap = {
-    none: HarmBlockThreshold.BLOCK_NONE,
-    high: HarmBlockThreshold.BLOCK_ONLY_HIGH,
-    medium: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
-    low: HarmBlockThreshold.BLOCK_LOW_AND_ABOVE
-};
 
-const roleMap = {
-    "user": "user",
-    "assistant": "model"
-};
+
 
 export function callGoogle(messages : {role: string; content: string;}[], model: GoogleModelSettings):
-{ stream: AsyncGenerator<string, void, unknown>; abort: () => void; } 
+{ stream: StreamAsyncGenerator; abort: () => void; } 
 {
     const genAI = new GoogleGenerativeAI(model.api_key);
+
+    messages = removeImages(messages);
+    
+    const thresholdMap = {
+        none: HarmBlockThreshold.BLOCK_NONE,
+        high: HarmBlockThreshold.BLOCK_ONLY_HIGH,
+        medium: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
+        low: HarmBlockThreshold.BLOCK_LOW_AND_ABOVE
+    };
+
+    const roleMap = {
+        "user": "user",
+        "assistant": "model"
+    };
+    
 
     const safetySettings = [
         {
@@ -344,19 +492,22 @@ export function callGoogle(messages : {role: string; content: string;}[], model:
 
 
 
-export function callAzure(messages : {role: string; content: string;}[], model: AzureModelSettings):
-{ stream: AsyncGenerator<string, void, unknown>; abort: () => void; } 
+export function callAzure(messages : {role: string; content: string | any;}[], model: AzureModelSettings):
+{ stream: StreamAsyncGenerator; abort: () => void; } 
 {
     const client = new OpenAIClient(model.endpoint, new AzureKeyCredential(model.azureApiKey));
 
     // Add the current cell content
     let completion : any;
     const stream = (async function*() {
+
         try {
             // Call the OpenAI API
+            messages = await handleOpenAIImages(messages, model.enableVision || false);
+            console.log(messages);
 
             const remainingParams = removeKeys(model, 'name', 'api', 'truncateTokens', 'truncateSysPrompt', 
-                                               'deploymentId', 'azureApiKey', 'endpoint');
+                                               'deploymentId', 'azureApiKey', 'endpoint', 'enableVision');
 
             const completion = await client.streamChatCompletions(
                 model.deploymentId, 
@@ -365,9 +516,11 @@ export function callAzure(messages : {role: string; content: string;}[], model: 
             );
 
             for await (const chunk of completion) {
-                const content = chunk.choices[0].delta?.content;
-                if (content) {
-                    yield content;  // Yield each chunk as it arrives
+                if (chunk.choices.length > 0) {
+                    const content = chunk.choices[0].delta?.content;
+                    if (content) {
+                        yield content;  // Yield each chunk as it arrives
+                    }
                 }
             }
         } catch (error) {
@@ -380,3 +533,44 @@ export function callAzure(messages : {role: string; content: string;}[], model: 
         abort: () => completion.cancel()
     };
 }
+
+
+export function callAzureImageGen(messages : {role: string; content: string | any;}[], model: AzureImageGenSettings):
+{ stream: StreamAsyncGenerator; abort: () => void; } 
+{
+    const client = new OpenAIClient(model.endpoint, new AzureKeyCredential(model.azureApiKey));
+    messages = removeImages(messages);
+
+    let completion : any;
+    // Add the current cell content
+    const stream = (async function*() {
+        try {
+            // Call the OpenAI API
+            const remainingParams = removeKeys(model, 'name', 'api', 'truncateTokens', 'truncateSysPrompt','deploymentId', 'azureApiKey', 'endpoint');
+
+
+            const image = await client.getImages(
+                model.deploymentId, 
+                messages[messages.length-1]["content"], 
+                {responseFormat: "b64_json", ...remainingParams}
+            );
+
+            if (image.data[0].base64Data) {
+                yield {output_type:"image/png", content:image.data[0].base64Data};
+                if (image.data[0].revisedPrompt) {
+                    yield {output_type:"text/markdown", content:image.data[0].revisedPrompt};
+                }
+            }
+            
+
+        } catch (error) {
+            vscode.window.showErrorMessage(`OpenAI Image Gen - error during streaming: ${error}`);
+        }
+    })();
+    
+    return {
+        stream,
+        abort: () => {return;}
+    };
+}
+

@@ -26,10 +26,11 @@ Fortunately, the IDE we're virtually all using already has a perfectly good inte
 
 ## Installation and setup
 
-Install the extension from the VSCode marketplace. Alternative, you can clone this repo and install the `chatllm-vscode-1.0.0.vsix` file by running the `Extensions: Install from VSIX...` command from within VSCode, on from the command line with the command
+Install the extension from the VSCode marketplace. Alternative, you can clone this repo and install the `chatllm-vscode-X.X.X.vsix` file by running the `Extensions: Install from VSIX...` command from within VSCode, on from the command line with the command
 ```
-$ code --install-extension chatllm-vscode-1.0.0.vsix
+$ code --install-extension chatllm-vscode-X.X.X.vsix
 ```
+(replacing X.X.X with the current version of the file).
 
 ### Setting up models
 
@@ -79,18 +80,8 @@ It likely goes without saying at this point, but I do not know how to program in
 ## Known Issues
 
 The following issues are known:
-- At some point, "Undo" functionality in the notebook editor breaks for some commands (like detaching output).  I'll need to look into this.
+- At some point, "Undo" functionality in the notebook editor breaks for some commands (like detaching output).
+- The Markdown editor doesn't natively seem to handle `\[ \]` or `\( \)` notation.  I previously did a find/replace to handle support these, but this caused issue when any of these commands appeared e.g., in regexs, so I reverted this for now.  I'll handle it properly in a later release.
 
 
-## Release Notes
 
-### 0.5.0
-- Initial private release, just on our lab github. 
-
-### 1.0.0
-- Added support for dynamic file inclusion in prompts.
-- Added copy buttons to code.
-
-### 1.1.0
-- Added Azure API support.
-- Make file inclusion always relative to notebook rather then workspace folder.
