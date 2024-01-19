@@ -141,11 +141,20 @@ class ChatLLMController {
                         if (!(await apiAzureAccount.waitForLogin())) {
                             await vscode.commands.executeCommand('azure-account.askForLogin');
                         }
+
+                        const sessions = await apiAzureAccount.sessions;
                         const credentials2 = await apiAzureAccount.sessions[0].credentials2;
+                        console.log("Credentials ", credentials2);
+                        console.log("Sessions ", sessions);
                         return resolve(credentials2);
                     }
                 );
-            }
+            } else {
+                console.log("Extension is already activated");
+                const apiAzureAccount = (azureAccount)!.exports;
+                return resolve(apiAzureAccount.sessions[0].credentials2);
+
+            } 
         });
     }
             
@@ -179,7 +188,7 @@ class ChatLLMController {
                 } else if (model.api === API.azure) {
                     //Retrieve  Azure token credentials
                     const accessToken = await this.getAzureTokenCredentials();
-
+                    console.log("Access token ", await accessToken.getToken());
                     ({stream, abort} = callAzure(collapsedMessages, model as AzureModelSettings, accessToken));                    
                 } else if (model.api === API.openaiImageGen) {
                     ({stream, abort} = callOpenAIImageGen(collapsedMessages, model as OpenAIImageGenSettings));
