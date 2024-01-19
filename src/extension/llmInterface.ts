@@ -8,8 +8,7 @@ import { Stream } from 'openai/streaming';
 import { readFileContent } from './extension.ts';
 import { useIdentityPlugin, DefaultAzureCredential } from "@azure/identity";
 import { vsCodePlugin } from "@azure/identity-vscode";
-
-
+import { TokenCredential } from '@azure/core-auth';
 
 export enum API {
     openai = "openai",
@@ -494,12 +493,18 @@ export function callGoogle(messages : {role: string; content: string;}[], model:
 
 
 
-export function callAzure(messages : {role: string; content: string | any;}[], model: AzureModelSettings):
+export function callAzure(messages : {role: string; content: string | any;}[], model: AzureModelSettings, tokenCredentials: TokenCredential):
 { stream: StreamAsyncGenerator; abort: () => void; } 
 {
-    //const client = new OpenAIClient(model.endpoint, new AzureKeyCredential(model.azureApiKey));
-    const client = new OpenAIClient(model.endpoint, new DefaultAzureCredential());
+     //const client = new OpenAIClient(model.endpoint, new DefaultAzureCredential());
+    var client;
+    if (model.azureApiKey) {
+        client = new OpenAIClient(model.endpoint, new AzureKeyCredential(model.azureApiKey));
 
+    } else if (tokenCredentials) {
+        client = new OpenAIClient(model.endpoint, tokenCredentials);
+    }
+    
     // Add the current cell content
     let completion : any;
     const stream = (async function*() {
@@ -527,6 +532,7 @@ export function callAzure(messages : {role: string; content: string | any;}[], m
                 }
             }
         } catch (error) {
+            console.log("Error ", error);
             vscode.window.showErrorMessage(`Azure - error during streaming: ${error}`);
         }
     })();

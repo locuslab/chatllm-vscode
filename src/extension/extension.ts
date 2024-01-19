@@ -7,6 +7,16 @@ import { ChatLLMNotebookSerializer } from './serializer.ts';
 import { SettingsEditorPanel } from './settingsEditor';
 import path from 'path';
 
+import { useIdentityPlugin, DefaultAzureCredential, VisualStudioCodeCredential } from "@azure/identity";
+//import type { AzureExtensionApiProvider } from '@microsoft/vscode-azext-utils/api';
+import { vsCodePlugin } from "@azure/identity-vscode";
+import { TokenCredential } from '@azure/core-auth';
+
+import { AzureAccountExtensionApi } from './azure/azure-account.api'; // Other extensions need to copy this .d.ts to their repository.
+
+
+useIdentityPlugin(vsCodePlugin);
+
 type ChatMessage = {
     role: string;
     content: string;
@@ -26,11 +36,12 @@ function errorModelSpec(): ModelSpec {
 }
 
 
-
 let modelStatusBarItem;
 
 
 export function activate(context: vscode.ExtensionContext) {
+
+    
     context.subscriptions.push(new ChatLLMController());
     context.subscriptions.push(vscode.commands.registerCommand('chatllm.selectModel', selectModel));
     context.subscriptions.push(vscode.commands.registerCommand('chatllm.detachOutput', detachOutput));
@@ -62,6 +73,20 @@ export function activate(context: vscode.ExtensionContext) {
 // This method is called when your extension is deactivated
 export function deactivate() {}
 
+// dev helper function to dump all the command identifiers to the console
+// helps if you cannot find the command id on github.
+var findCommand = function(){
+    vscode.commands.getCommands(true).then( 
+        function(cmds){
+            console.log("fulfilled");
+            console.log(cmds);
+        },
+        function() {
+            console.log("failed");
+            console.log(arguments);
+        }
+    )
+};
 
 class ChatLLMController {
     readonly controllerId = 'chatllm-notebook-controller';
@@ -82,12 +107,14 @@ class ChatLLMController {
             this._controller.supportedLanguages = this.supportedLanguages;
             this._controller.supportsExecutionOrder = true;
             this._controller.executeHandler = this._execute.bind(this);
+            
     }
         
     dispose() {
         // Clean up resources, if any
         this._controller.dispose();
     }
+
         
     private _execute(
         cells: vscode.NotebookCell[],
@@ -99,6 +126,28 @@ class ChatLLMController {
         }
     }
 
+    /**
+     * Get the AzureTokenCredentials
+     * TODO: Cache the credentials and don't retrieve them on every call
+     */
+    private getAzureTokenCredentials(): Promise<TokenCredential> {
+        const azureAccount: AzureAccountExtensionApi = (vscode.extensions.getExtension('ms-vscode.azure-account'));
+        return new Promise((resolve) => {
+            if(azureAccount.isActive == false ){
+                azureAccount.activate().then(
+                    async function(){
+                        console.log( "Extension activated");
+                        const apiAzureAccount = (azureAccount)!.exports;
+                        if (!(await apiAzureAccount.waitForLogin())) {
+                            await vscode.commands.executeCommand('azure-account.askForLogin');
+                        }
+                        const credentials2 = await apiAzureAccount.sessions[0].credentials2;
+                        return resolve(credentials2);
+                    }
+                );
+            }
+        });
+    }
             
     private async _doExecution(cell: vscode.NotebookCell): Promise<void> {
         const execution = this._controller.createNotebookCellExecution(cell);
@@ -128,7 +177,10 @@ class ChatLLMController {
                 } else if (model.api === API.google) {
                     ({stream, abort} = callGoogle(collapsedMessages, model as GoogleModelSettings));
                 } else if (model.api === API.azure) {
-                    ({stream, abort} = callAzure(collapsedMessages, model as AzureModelSettings));
+                    //Retrieve  Azure token credentials
+                    const accessToken = await this.getAzureTokenCredentials();
+
+                    ({stream, abort} = callAzure(collapsedMessages, model as AzureModelSettings, accessToken));                    
                 } else if (model.api === API.openaiImageGen) {
                     ({stream, abort} = callOpenAIImageGen(collapsedMessages, model as OpenAIImageGenSettings));
                 } else if (model.api === API.azureImageGen) {
