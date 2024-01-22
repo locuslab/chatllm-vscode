@@ -7,15 +7,7 @@ import { ChatLLMNotebookSerializer } from './serializer.ts';
 import { SettingsEditorPanel } from './settingsEditor';
 import path from 'path';
 
-import { useIdentityPlugin, DefaultAzureCredential, VisualStudioCodeCredential } from "@azure/identity";
-//import type { AzureExtensionApiProvider } from '@microsoft/vscode-azext-utils/api';
-import { vsCodePlugin } from "@azure/identity-vscode";
-import { TokenCredential } from '@azure/core-auth';
 
-import { AzureAccountExtensionApi } from './azure/azure-account.api'; // Other extensions need to copy this .d.ts to their repository.
-
-
-useIdentityPlugin(vsCodePlugin);
 
 type ChatMessage = {
     role: string;
@@ -73,20 +65,6 @@ export function activate(context: vscode.ExtensionContext) {
 // This method is called when your extension is deactivated
 export function deactivate() {}
 
-// dev helper function to dump all the command identifiers to the console
-// helps if you cannot find the command id on github.
-var findCommand = function(){
-    vscode.commands.getCommands(true).then( 
-        function(cmds){
-            console.log("fulfilled");
-            console.log(cmds);
-        },
-        function() {
-            console.log("failed");
-            console.log(arguments);
-        }
-    )
-};
 
 class ChatLLMController {
     readonly controllerId = 'chatllm-notebook-controller';
@@ -126,37 +104,6 @@ class ChatLLMController {
         }
     }
 
-    /**
-     * Get the AzureTokenCredentials
-     * TODO: Cache the credentials and don't retrieve them on every call
-     */
-    private getAzureTokenCredentials(): Promise<TokenCredential> {
-        const azureAccount: AzureAccountExtensionApi = (vscode.extensions.getExtension('ms-vscode.azure-account'));
-        return new Promise((resolve) => {
-            if(azureAccount.isActive == false ){
-                azureAccount.activate().then(
-                    async function(){
-                        console.log( "Extension activated");
-                        const apiAzureAccount = (azureAccount)!.exports;
-                        if (!(await apiAzureAccount.waitForLogin())) {
-                            await vscode.commands.executeCommand('azure-account.askForLogin');
-                        }
-
-                        const sessions = await apiAzureAccount.sessions;
-                        const credentials2 = await apiAzureAccount.sessions[0].credentials2;
-                        console.log("Credentials ", credentials2);
-                        console.log("Sessions ", sessions);
-                        return resolve(credentials2);
-                    }
-                );
-            } else {
-                console.log("Extension is already activated");
-                const apiAzureAccount = (azureAccount)!.exports;
-                return resolve(apiAzureAccount.sessions[0].credentials2);
-
-            } 
-        });
-    }
             
     private async _doExecution(cell: vscode.NotebookCell): Promise<void> {
         const execution = this._controller.createNotebookCellExecution(cell);
@@ -187,9 +134,7 @@ class ChatLLMController {
                     ({stream, abort} = callGoogle(collapsedMessages, model as GoogleModelSettings));
                 } else if (model.api === API.azure) {
                     //Retrieve  Azure token credentials
-                    const accessToken = await this.getAzureTokenCredentials();
-                    console.log("Access token ", await accessToken.getToken());
-                    ({stream, abort} = callAzure(collapsedMessages, model as AzureModelSettings, accessToken));                    
+                    ({stream, abort} = callAzure(collapsedMessages, model as AzureModelSettings));                    
                 } else if (model.api === API.openaiImageGen) {
                     ({stream, abort} = callOpenAIImageGen(collapsedMessages, model as OpenAIImageGenSettings));
                 } else if (model.api === API.azureImageGen) {
