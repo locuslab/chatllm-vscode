@@ -582,16 +582,28 @@ export function callAzure(messages : {role: string; content: string | any;}[], m
 export function callAzureImageGen(messages : {role: string; content: string | any;}[], model: AzureImageGenSettings):
 { stream: StreamAsyncGenerator; abort: () => void; } 
 {
-    const client = new OpenAIClient(model.endpoint, new AzureKeyCredential(model.azureApiKey));
     messages = removeImages(messages);
 
     let completion : any;
     // Add the current cell content
     const stream = (async function*() {
         try {
+            // load the azure client
+            let client;
+            if (model.azureApiKey) {
+                client = new OpenAIClient(model.endpoint, new AzureKeyCredential(model.azureApiKey));
+            } else {
+                const tokenCredentials = await getAzureTokenCredentials();
+                if (tokenCredentials) {
+                    client = new OpenAIClient(model.endpoint, tokenCredentials);
+                } else {
+                    vscode.window.showErrorMessage(`Azure - You must install the azure-access plugin to use without an API Key.`);
+                    return;
+                }
+            }
+
             // Call the OpenAI API
             const remainingParams = removeKeys(model, 'name', 'api', 'truncateTokens', 'truncateSysPrompt','deploymentId', 'azureApiKey', 'endpoint');
-
 
             const image = await client.getImages(
                 model.deploymentId, 
