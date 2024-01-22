@@ -8,6 +8,14 @@ import { Stream } from 'openai/streaming';
 import { readFileContent } from './extension.ts';
 
 
+import { useIdentityPlugin, DefaultAzureCredential, VisualStudioCodeCredential } from "@azure/identity";
+import { vsCodePlugin } from "@azure/identity-vscode";
+import { TokenCredential } from '@azure/core-auth';
+useIdentityPlugin(vsCodePlugin);
+
+
+
+
 
 export enum API {
     openai = "openai",
@@ -491,17 +499,52 @@ export function callGoogle(messages : {role: string; content: string;}[], model:
 
 
 
+async function getAzureTokenCredentials() : Promise<TokenCredential | undefined>
+{
+    const azureAccount = (vscode.extensions.getExtension('ms-vscode.azure-account'));
+    if (azureAccount) {
+        if (!azureAccount.isActive) {
+            await azureAccount.activate();
+        }
+
+        const apiAzureAccount = azureAccount.exports;
+        if (!(await apiAzureAccount.waitForLogin())) {
+            await vscode.commands.executeCommand('azure-account.askForLogin');
+        }
+        const sessions = await apiAzureAccount.sessions;
+        const credentials2 = await apiAzureAccount.sessions[0].credentials2;
+        console.log("Credentials ", credentials2);
+        console.log("Sessions ", sessions);
+        return credentials2;
+    } else {
+        return undefined;
+    }
+}
 
 export function callAzure(messages : {role: string; content: string | any;}[], model: AzureModelSettings):
 { stream: StreamAsyncGenerator; abort: () => void; } 
 {
-    const client = new OpenAIClient(model.endpoint, new AzureKeyCredential(model.azureApiKey));
-
+    //const client = new OpenAIClient(model.endpoint, new DefaultAzureCredential());
+    
     // Add the current cell content
     let completion : any;
     const stream = (async function*() {
 
         try {
+            // load the azure client
+            let client;
+            if (model.azureApiKey) {
+                client = new OpenAIClient(model.endpoint, new AzureKeyCredential(model.azureApiKey));
+            } else {
+                const tokenCredentials = await getAzureTokenCredentials();
+                if (tokenCredentials) {
+                    client = new OpenAIClient(model.endpoint, tokenCredentials);
+                } else {
+                    vscode.window.showErrorMessage(`Azure - You must install the azure-access plugin to use without an API Key.`);
+                    return;
+                }
+            }
+
             // Call the OpenAI API
             messages = await handleOpenAIImages(messages, model.enableVision || false);
             console.log(messages);
@@ -524,6 +567,7 @@ export function callAzure(messages : {role: string; content: string | any;}[], m
                 }
             }
         } catch (error) {
+            console.log("Error ", error);
             vscode.window.showErrorMessage(`Azure - error during streaming: ${error}`);
         }
     })();
@@ -538,16 +582,28 @@ export function callAzure(messages : {role: string; content: string | any;}[], m
 export function callAzureImageGen(messages : {role: string; content: string | any;}[], model: AzureImageGenSettings):
 { stream: StreamAsyncGenerator; abort: () => void; } 
 {
-    const client = new OpenAIClient(model.endpoint, new AzureKeyCredential(model.azureApiKey));
     messages = removeImages(messages);
 
     let completion : any;
     // Add the current cell content
     const stream = (async function*() {
         try {
+            // load the azure client
+            let client;
+            if (model.azureApiKey) {
+                client = new OpenAIClient(model.endpoint, new AzureKeyCredential(model.azureApiKey));
+            } else {
+                const tokenCredentials = await getAzureTokenCredentials();
+                if (tokenCredentials) {
+                    client = new OpenAIClient(model.endpoint, tokenCredentials);
+                } else {
+                    vscode.window.showErrorMessage(`Azure - You must install the azure-access plugin to use without an API Key.`);
+                    return;
+                }
+            }
+
             // Call the OpenAI API
             const remainingParams = removeKeys(model, 'name', 'api', 'truncateTokens', 'truncateSysPrompt','deploymentId', 'azureApiKey', 'endpoint');
-
 
             const image = await client.getImages(
                 model.deploymentId, 
