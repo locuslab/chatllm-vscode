@@ -5,6 +5,9 @@ All notable changes to the "chatllm-vscode" extension will be documented in this
 
 ## [Unreleased]
 
+## [1.2.2]
+- Fix bug in .node inclusion code in esbuild.js
+
 ## [1.2.1]
 - Added Azure SSO support
 
