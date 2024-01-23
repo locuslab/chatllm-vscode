@@ -2,19 +2,19 @@
   "cells": [
     {
       "kind": 2,
-      "value": "You are a helpful assistant.\n\n{{%% include sys.prompt %%}}",
+      "value": "You are a helpful assistant.\n\n{{%% include ../src/extension/extension.ts %%}}",
       "languageId": "chatllm-system-prompt",
       "outputs": []
     },
     {
       "kind": 2,
-      "value": "What is your name?",
+      "value": "Tell me some things wrong with this code.",
       "languageId": "chatllm",
       "outputs": [
         {
           "items": [
             {
-              "data": "My name is Marvin. How can I assist you today?",
+              "data": "There are several things in the provided code that could potentially lead to issues, either because they are not aligned with best practices or could result in runtime errors. Here is a list of some potential problems and areas for improvement:\n\n1. **Error Handling**:\n    There is minimal error handling throughout the code. For instance, there is no catch block for handling rejections during asynchronous operations, such as file reading or API calls. Lack of error handling could lead to unhandled promise rejections, which can crash the extension.\n\n2. **Consistent Naming Conventions**:\n    The function `readFileContent()` uses `camelCase` while the other functions like `selectModel()` and `detachOutput()` use `PascalCase` for their names. It's important to follow consistent naming conventions to maintain code readability.\n\n3. **Potential Runtime Errors**:\n    - In the `readFileContent()` function, it assumes there is an active text editor. If the function is called without an active text editor, it will throw an error.\n    - In the `processMatch()` function, the `match` parameter handling assumes the shape of the match groups without verification.\n\n4. **Inefficient Regular Expression Handling**:\n    During the `processText()` function, a global regular expression pattern is used with the `matchAll()` method to find occurrences in the text. This method is inefficient as it processes the entire text and creates matches for all occurrences at once, even if later matches overwrite earlier replacements.\n\n5. **Manual Token Handling**:\n    The function `collapseConsecutiveMessages()` manually handles collapsing messages and token encoding, which could be error-prone and difficult to maintain.\n\n6. **Code Reusability**:\n    The main code in `activate()` registers commands and other components explicitly. Part of this process could be abstracted into separate functions for reuse and clarity.\n\n7. **Global Variables**:\n    `modelStatusBarItem` is declared as a global variable. This might lead to unexpected side effects or state management issues, especially if it's manipulated from different parts of the extension without proper safeguards.\n\n8. **Ambiguous Function Names**:\n    Some function names do not convey clear intent, such as `notebookChangedEvent()`. A name like `handleNotebookChangeEvent()` would make the code more self-documenting.\n\n9. **Lack of Input Validation**:\n    There's no explicit validation for settings configurations or API responses. This could lead to runtime errors if the configurations are not as expected or if the API responses are not in the anticipated format.\n\n10. **Coupling with Specific Markdown Syntax**:\n    The output conversion in `detachOutput()` assumes the markdown syntax with \"#### (Chat Output)\\n\", which could lead to formatting issues if the markdown parser or the notebook renderer has different expectations.\n\n11. **Use of Magic Numbers**:\n    Magic numbers (like `100` in `setTimeout()`) and hardcoded strings can make the code less maintainable and harder to understand.\n\n12. **Assumptions About Output Mimes**:\n    The code assumes specific `mime` types such as 'text/markdown' and 'image/png'. If an output type is different, the code will not handle it, which can lead to missed outputs or errors.\n\n13. **Concurrency Issues**:\n    The code operates on the assumption that the notebook state will remain constant during asynchronous operations. If the notebook's cells are modified during an asynchronous operation, it could lead to inconsistencies or errors.\n\n14. **UI Updates Outside Main Thread**:\n    VS Code extensions should use the `vscode.window.show*` methods in the main thread. If the extension uses them in async callbacks or anywhere outside the main activation thread, it may lead to issues.\n\n15. **Use of Deprecated/Outdated APIs**:\n    Without the full context of the API versions being used, there is a possibility that some of the VS Code API methods used here may be deprecated or have better alternatives in newer versions.\n\nThe provided code snippet seems non-trivial and involves various components of a VS Code extension. The potential problems highlighted here should be addressed with thorough testing and adherence to best practices when building and maintaining VS Code extensions.",
               "mime": "text/markdown"
             }
           ]
@@ -29,12 +29,6 @@
       "outputs": []
     },
     {
-      "kind": 1,
-      "value": "Test",
-      "languageId": "markdown",
-      "outputs": []
-    },
-    {
       "kind": 2,
       "value": "Write a Python function that implements this function $f$.",
       "languageId": "chatllm",
@@ -42,7 +36,7 @@
         {
           "items": [
             {
-              "data": "Certainly! Below is a Python function that implements the mathematical function \\( f(x) = \\sum_{i=1}^n x_i^3 \\):\n\n```python\ndef f(numbers):\n    return sum(x**3 for x in numbers)\n\n# Example usage:\n# Create a list of numbers for which you want to calculate the function\nnumbers = [1, 2, 3, 4]\n\n# Pass the list to the function 'f'\nresult = f(numbers)\n\nprint(\"The result is:\", result)\n```\n\nThis `f` function takes a list of numbers as input, calculates each number raised to the power of 3, and returns the sum of these cubes. The `sum` function and a generator expression are used to perform the summation of the cubes.",
+              "data": "Certainly! The mathematical function you've provided sums the cubes of a series of elements `x_i`, from `i=1` to `i=n`. In Python, you can implement this function by accepting a list of numbers and returning the sum of their cubes.\n\nHere's an example of a Python function that does this:\n\n```python\ndef sum_of_cubes(numbers):\n    return sum(x**3 for x in numbers)\n\n# Example usage:\nnums = [1, 2, 3, 4]\nresult = sum_of_cubes(nums)\nprint(result)  # Output will be 1^3 + 2^3 + 3^3 + 4^3 = 100\n```\n\nThis function, `sum_of_cubes`, uses list comprehension to create a generator that yields each number in `numbers` raised to the power of 3, and then the `sum` function adds up all these cube values.",
               "mime": "text/markdown"
             }
           ]

@@ -7,6 +7,8 @@ import { ChatLLMNotebookSerializer } from './serializer.ts';
 import { SettingsEditorPanel } from './settingsEditor';
 import path from 'path';
 
+
+
 type ChatMessage = {
     role: string;
     content: string;
@@ -26,11 +28,12 @@ function errorModelSpec(): ModelSpec {
 }
 
 
-
 let modelStatusBarItem;
 
 
 export function activate(context: vscode.ExtensionContext) {
+
+    
     context.subscriptions.push(new ChatLLMController());
     context.subscriptions.push(vscode.commands.registerCommand('chatllm.selectModel', selectModel));
     context.subscriptions.push(vscode.commands.registerCommand('chatllm.detachOutput', detachOutput));
@@ -82,12 +85,14 @@ class ChatLLMController {
             this._controller.supportedLanguages = this.supportedLanguages;
             this._controller.supportsExecutionOrder = true;
             this._controller.executeHandler = this._execute.bind(this);
+            
     }
         
     dispose() {
         // Clean up resources, if any
         this._controller.dispose();
     }
+
         
     private _execute(
         cells: vscode.NotebookCell[],
@@ -128,7 +133,8 @@ class ChatLLMController {
                 } else if (model.api === API.google) {
                     ({stream, abort} = callGoogle(collapsedMessages, model as GoogleModelSettings));
                 } else if (model.api === API.azure) {
-                    ({stream, abort} = callAzure(collapsedMessages, model as AzureModelSettings));
+                    //Retrieve  Azure token credentials
+                    ({stream, abort} = callAzure(collapsedMessages, model as AzureModelSettings));                    
                 } else if (model.api === API.openaiImageGen) {
                     ({stream, abort} = callOpenAIImageGen(collapsedMessages, model as OpenAIImageGenSettings));
                 } else if (model.api === API.azureImageGen) {

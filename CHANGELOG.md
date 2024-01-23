@@ -5,6 +5,9 @@ All notable changes to the "chatllm-vscode" extension will be documented in this
 
 ## [Unreleased]
 
+## [1.2.1]
+- Added Azure SSO support
+
 ## [1.2.0]
 - Added support for GPT4Vision (just via PNGs for now)
 - Added support for OpenAI Image Generation (Dall-E models)

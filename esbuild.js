@@ -9,6 +9,10 @@ esbuild.build({
     // minify: true,
     platform: 'browser',
     outfile: path.join(__dirname, 'out/customMarkdownRenderer.js'),
+    loader: {
+        // ensures .node binaries are copied to ./dist
+        ".node": "copy",
+    },
     plugins: [
         sassPlugin({type: "style"})
     ]
@@ -23,6 +27,10 @@ esbuild.build({
     // minify: true,
     platform: 'node',
     outdir: path.join(__dirname, 'out'),
+    loader: {
+        // ensures .node binaries are copied to ./dist
+        ".node": "copy",
+    },
     external: ['vscode']
 }).catch(() => process.exit(1));
 
@@ -34,6 +42,10 @@ esbuild.build({
     bundle: true,
     target: 'es2020',
     format: 'esm',
+    loader: {
+        // ensures .node binaries are copied to ./dist
+        ".node": "copy",
+    },
     // minify: true,
     outdir: path.join(__dirname, 'out')
 }).catch(() => process.exit(1));
