@@ -10,7 +10,7 @@
         {
             "key": "api",
             "type": "enum",
-            "values": ["openai", "together", "google", "azure", "openai-imagegen", "azure-imagegen"],
+            "values": ["openai", "together", "google", "azure", "openai-imagegen", "azure-imagegen", "ollama"],
             "description": "Model API",
             "optional": false,
             "defaultValue": "openai"
@@ -480,6 +480,36 @@
             "key": "user",
             "type": "string",
             "description": "User identifier",
+            "optional": true,
+            "defaultValue": null
+        }
+    ],
+    "ollama": [
+        {
+            "key": "model",
+            "type": "string",
+            "description": "Ollama Model name",
+            "optional": false,
+            "defaultValue": "llama2"
+        },
+        {
+            "key": "url",
+            "type": "string",
+            "description": "Base URL, if not localhost",
+            "optional": true,
+            "defaultValue": null
+        },
+        {
+            "key": "enable_vision",
+            "type": "boolean",
+            "description": "Enable Ollama Vision features",
+            "optional": true,
+            "defaultValue": false
+        },
+        {
+            "key": "options",
+            "type": "object",
+            "description": "JSON String of options dictionary",
             "optional": true,
             "defaultValue": null
         }

@@ -11,6 +11,12 @@ import { readFileContent } from './extension.ts';
 import { useIdentityPlugin, DefaultAzureCredential, VisualStudioCodeCredential } from "@azure/identity";
 import { vsCodePlugin } from "@azure/identity-vscode";
 import { TokenCredential } from '@azure/core-auth';
+import path from 'path';
+import * as mime from 'mime-types';
+import axios from 'axios';
+import { Ollama } from 'ollama'
+
+
 useIdentityPlugin(vsCodePlugin);
 
 
@@ -24,6 +30,7 @@ export enum API {
     azure = "azure",
     openaiImageGen = "openai-imagegen",
     azureImageGen = "azure-imagegen",
+    ollama = "ollama",
     none = "none"
 }
 
@@ -131,9 +138,18 @@ export interface AzureImageGenSettings extends ModelSettings {
 }
 
 
+export interface OllamaModelSettings extends ModelSettings {
+    model: string,
+    url?: string,
+    enable_vision? : boolean,
+    options?: object
+}
+
+
+
 
 function extractMarkdownImages(markdownText: string): { updatedText: string; images: { altText: string; imageUrl: string }[] } {
-    const imageRegex = /!\[([^[]+)]\((.*?)\)/g;
+    const imageRegex = /!\[([^[]*)]\((.*?)\)/g;
     let images: { altText: string; imageUrl: string }[] = [];
 
     // Replace the markdown image syntax and collect image information
@@ -170,7 +186,6 @@ function removeImages(messages : {role: string; content: string;}[])
 }
 
 async function handleOpenAIImages(messages : {role: string; content: string | any;}[], enableVision: boolean) {
-    
     for (const message of messages) {
         if (message.role === 'user') {
             const { updatedText, images } = extractMarkdownImages(message.content);
@@ -180,13 +195,19 @@ async function handleOpenAIImages(messages : {role: string; content: string | an
                     {type:'text', text:updatedText},
                     ... await Promise.all(images.map(async ({ altText, imageUrl }) => {
                         if (altText === '%%ChatLLM Inline Image') {
-                            return { type: "image_url", image_url:{url: imageUrl }};
+                            return { type: "image_url", image_url:{url: "data:image/png;base64," + imageUrl }};
                         } else if (imageUrl.startsWith("http") || imageUrl.startsWith("https") ) {
                             return { type:"image_url", image_url:{url:imageUrl}};
                         } else {
+
+                            // get file mime type
+                            const activeEditor = vscode.window.activeTextEditor;
+                            const currentFileDir = path.dirname(activeEditor!.document.uri.fsPath);
+                            const filename = path.join(currentFileDir, imageUrl);
+                            const mimeType = mime.lookup(filename);
                             const fileContent = await readFileContent(imageUrl);
                             const serializedData = Buffer.from(fileContent).toString('base64');
-                            return { type:"image_url", image_url:{url:"data:image/png;base64," + serializedData}};
+                            return { type:"image_url", image_url:{url:`data:${mimeType};base64,` + serializedData}};
                         }
                     }))
                 ];
@@ -198,8 +219,10 @@ async function handleOpenAIImages(messages : {role: string; content: string | an
 
 
 
-export type StreamAsyncGenerator = AsyncGenerator<string | { output_type: string; content: string }, void, unknown>;
 
+
+
+export type StreamAsyncGenerator = AsyncGenerator<string | { output_type: string; content: string }, void, unknown>;
 
 
 export function callChatGPT(messages : {role: string; content: string | any;}[], model: OpenAIModelSettings):
@@ -621,6 +644,81 @@ export function callAzureImageGen(messages : {role: string; content: string | an
 
         } catch (error) {
             vscode.window.showErrorMessage(`OpenAI Image Gen - error during streaming: ${error}`);
+        }
+    })();
+    
+    return {
+        stream,
+        abort: () => {return;}
+    };
+}
+
+
+
+
+
+async function downloadImageAndConvertToBase64(url: string): Promise<string> {
+    try {
+        const response = await axios({url, responseType: 'arraybuffer'});
+        return Buffer.from(response.data).toString('base64');
+    } catch (error) {
+        vscode.window.showErrorMessage('Failed to download or convert image', error);
+        return "";
+    }
+}
+
+
+async function handleOllamaImages(messages : {role: string; content: string, images?: any[]}[], enableVision: boolean) {
+    for (const message of messages) {
+        if (message.role === 'user') {
+            const { updatedText, images } = extractMarkdownImages(message.content);
+            message.content = updatedText;
+            if (images.length > 0 && enableVision) {
+                message.images = [
+                    ... await Promise.all(images.map(async ({ altText, imageUrl }) => {
+                        if (altText === '%%ChatLLM Inline Image') {
+                            return imageUrl;
+                        } else if (imageUrl.startsWith("http") || imageUrl.startsWith("https") ) {
+                            return await downloadImageAndConvertToBase64(imageUrl);
+                        } else {
+                            const fileContent = await readFileContent(imageUrl);
+                            return fileContent;
+                        }
+                    }))
+                ];
+            }
+        }
+    }
+    return messages;
+}
+
+export function callOllama(messages : {role: string; content: string, images?: any[]}[], model: OllamaModelSettings):
+{ stream: StreamAsyncGenerator; abort: () => void; } 
+{
+    const ollama = new Ollama({ host: model.url || 'http://localhost:11434' })
+
+    // Add the current cell content
+    const stream = (async function*() {
+        try {
+            // handle images in the user text
+            messages = await handleOllamaImages(messages, model.enable_vision || false);
+
+            console.log(messages);
+            const response = await ollama.chat({
+                model: model.model,
+                messages: messages,
+                stream: true,
+                options: model.options || undefined
+            });
+            
+            for await (const chunk of response) {
+                if (!chunk.done) {
+                    yield chunk.message.content;
+                }
+            }
+
+        } catch (error) {
+            vscode.window.showErrorMessage(`Ollama - error during streaming: ${error}`);
         }
     })();
     

@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 import { getEncoding, encodingForModel } from "js-tiktoken";
 import { callChatGPT, callTogether, callGoogle, callAzure,
     OpenAIModelSettings, TogetherModelSettings, GoogleModelSettings, AzureModelSettings,
-    ModelSettings, API, callOpenAIImageGen, OpenAIImageGenSettings, StreamAsyncGenerator, callAzureImageGen, AzureImageGenSettings } from './llmInterface.ts';
+    ModelSettings, API, callOpenAIImageGen, OpenAIImageGenSettings, StreamAsyncGenerator, callAzureImageGen, AzureImageGenSettings, callOllama, OllamaModelSettings } from './llmInterface.ts';
 import { ChatLLMNotebookSerializer } from './serializer.ts';
 import { SettingsEditorPanel } from './settingsEditor';
 import path from 'path';
@@ -139,6 +139,8 @@ class ChatLLMController {
                     ({stream, abort} = callOpenAIImageGen(collapsedMessages, model as OpenAIImageGenSettings));
                 } else if (model.api === API.azureImageGen) {
                     ({stream, abort} = callAzureImageGen(collapsedMessages, model as AzureImageGenSettings));
+                } else if (model.api === API.ollama) {
+                    ({stream, abort} = callOllama(collapsedMessages, model as OllamaModelSettings));
                 } else {
                     vscode.window.showErrorMessage("No valid model specified.  Select a model for the cell using the 'ChatLLM: Select Model' command.");
                     execution.end(true, Date.now());
@@ -267,7 +269,7 @@ async function getMessages(cells : vscode.NotebookCell[]) {
                     } else if (output.items[0].mime === 'image/png') {
                         // this is a very hacky way to handle API-generated images, so probably want to fix later
                         const base64_img = Buffer.from(output.items[0].data).toString('base64');
-                        messages.push({ role: 'user', content: `![%%ChatLLM Inline Image](data:image/png;base64,${base64_img})`});
+                        messages.push({ role: 'user', content: `![%%ChatLLM Inline Image](${base64_img})`});
                     }
                 }
                 

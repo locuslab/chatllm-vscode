@@ -5,6 +5,10 @@ All notable changes to the "chatllm-vscode" extension will be documented in this
 
 ## [Unreleased]
 
+## [1.3.0]
+- Added support for Ollama backend (including images for Llava-like models)
+- Fix issue with loading markdown images without alt text
+
 ## [1.2.2]
 - Fix bug in .node inclusion code in esbuild.js
 
