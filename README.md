@@ -66,7 +66,7 @@ The mechanism of ChatLLM is that all content _before_ the cell you are running w
 
 ### Dynamic file inclusion in prompts
 
-To include the contents of a file in your prompt, put the text `{{%% include <filename> }}` into one of your prompts.  Note that the filenames need to be specified relative to the ***currently open VSCode workspace folder***, not relative to the specific location of the notebook.  I have found that this this is particularly useful in the (common) setting where I'm using ChatLLM to develop a code base, but I'm copying portion of the response into my code base, making changes, and maintaining things literal copies of the ChatLLM output.
+To include the contents of a file in your prompt, put the text `{{%% include <filename> %%}}` into one of your prompts.  Note that the filenames need to be specified relative to the ***currently open VSCode workspace folder***, not relative to the specific location of the notebook.  I have found that this this is particularly useful in the (common) setting where I'm using ChatLLM to develop a code base, but I'm copying portion of the response into my code base, making changes, and maintaining things literal copies of the ChatLLM output.
 
 ## Technology
 
